@@ -1,5 +1,5 @@
-const User = require("../models/userModel");
-const jwt = require("jsonwebtoken");
+import User from "../models/userModel.js";
+import jwt from "jsonwebtoken";
 
 // Generate JWT
 const generateToken = (userId) => {
@@ -7,10 +7,11 @@ const generateToken = (userId) => {
     expiresIn: "7d",
   });
 };
+
 // @desc    Register new user
 // @route   POST /api/auth/register
 // @access  Public
-const registerUser = async (req, res) => {
+export const registerUser = async (req, res) => {
   const { name, email, password } = req.body;
 
   try {
@@ -31,8 +32,7 @@ const registerUser = async (req, res) => {
   }
 };
 
-
-const loginUser = async (req, res) => {
+export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
@@ -41,7 +41,7 @@ const loginUser = async (req, res) => {
       res.json({
         message: "Login successful",
         token: generateToken(user._id),
-        token_type: "Bearer", // 👈 add this
+        token_type: "Bearer",
       });
     } else {
       res.status(401).json({ message: "Invalid email or password" });
@@ -51,17 +51,10 @@ const loginUser = async (req, res) => {
   }
 };
 
-
 // @desc    Get logged-in user profile
 // @route   GET /api/auth/me
 // @access  Private
-const getMe = async (req, res) => {
+export const getMe = async (req, res) => {
   const user = await User.findById(req.user.id).select("-password");
   res.json(user);
-};
-
-module.exports = {
-  registerUser,
-  loginUser,
-  getMe,
 };

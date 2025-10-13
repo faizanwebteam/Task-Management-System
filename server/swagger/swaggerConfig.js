@@ -1,5 +1,5 @@
-const swaggerJsDoc = require("swagger-jsdoc");
-const swaggerUi = require("swagger-ui-express");
+import swaggerJsDoc from "swagger-jsdoc";
+import swaggerUi from "swagger-ui-express";
 
 const options = {
   definition: {
@@ -35,4 +35,4 @@ const swaggerDocs = (app, port) => {
   console.log(`Swagger docs available at http://localhost:${port}/api/docs`);
 };
 
-module.exports = swaggerDocs;
+export default swaggerDocs;

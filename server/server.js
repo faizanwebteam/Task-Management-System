@@ -1,8 +1,10 @@
-const express = require("express");
-const dotenv = require("dotenv");
-const connectDB = require("./config/db");
-const authRoutes = require("./routes/authRoutes");
-const swaggerDocs = require("./swagger/swaggerConfig");
+import express from "express";
+import dotenv from "dotenv";
+import connectDB from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js";
+import taskRoutes from "./routes/taskRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import swaggerDocs from "./swagger/swaggerConfig.js";
 
 dotenv.config();
 connectDB();
@@ -12,6 +14,8 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/users", userRoutes);
 
 // Swagger
 swaggerDocs(app, process.env.PORT || 5000);
