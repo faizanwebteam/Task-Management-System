@@ -1,5 +1,12 @@
 import User from "../models/userModel.js";
-import bcrypt from "bcryptjs";
+
+// @desc    Get logged-in user profile
+// @route   GET /api/users/me
+// @access  Private
+export const getMe = async (req, res) => {
+  const user = await User.findById(req.user._id).select("-password");
+  res.json(user);
+};
 
 // @desc    Update logged-in user's profile
 // @route   PUT /api/users/profile
@@ -7,17 +14,20 @@ import bcrypt from "bcryptjs";
 export const updateUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    const { name, oldPassword, newPassword } = req.body;
 
-    const { name, password } = req.body;
-
+    // Update name if provided
     if (name) user.name = name;
-    if (password) {
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(password, salt);
+
+    // Update password if oldPassword + newPassword provided
+    if (oldPassword && newPassword) {
+      const isMatch = await user.matchPassword(oldPassword);
+      if (!isMatch)
+        return res.status(400).json({ message: "Old password is incorrect" });
+
+      user.password = newPassword; // pre-save hook hashes it
     }
 
     const updatedUser = await user.save();

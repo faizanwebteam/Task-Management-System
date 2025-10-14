@@ -8,7 +8,7 @@ const generateToken = (userId) => {
   });
 };
 
-// @desc    Register new user
+// @desc    Register a new user
 // @route   POST /api/auth/register
 // @access  Public
 export const registerUser = async (req, res) => {
@@ -16,9 +16,8 @@ export const registerUser = async (req, res) => {
 
   try {
     const userExists = await User.findOne({ email });
-    if (userExists) {
+    if (userExists)
       return res.status(400).json({ message: "User already exists" });
-    }
 
     const user = await User.create({ name, email, password });
 
@@ -32,6 +31,9 @@ export const registerUser = async (req, res) => {
   }
 };
 
+// @desc    Login user & get JWT
+// @route   POST /api/auth/login
+// @access  Public
 export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
@@ -49,12 +51,4 @@ export const loginUser = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
-
-// @desc    Get logged-in user profile
-// @route   GET /api/auth/me
-// @access  Private
-export const getMe = async (req, res) => {
-  const user = await User.findById(req.user.id).select("-password");
-  res.json(user);
 };

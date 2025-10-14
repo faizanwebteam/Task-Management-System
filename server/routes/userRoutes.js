@@ -1,7 +1,21 @@
 import express from "express";
 const router = express.Router();
 import { protect } from "../middleware/authMiddleware.js";
-import { updateUserProfile } from "../controllers/userController.js";
+import { getMe, updateUserProfile } from "../controllers/userController.js";
+
+/**
+ * @swagger
+ * /api/users/me:
+ *   get:
+ *     summary: Get logged-in user's profile
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile
+ */
+router.get("/me", protect, getMe);
 
 /**
  * @swagger
@@ -21,25 +35,15 @@ import { updateUserProfile } from "../controllers/userController.js";
  *               name:
  *                 type: string
  *                 example: John Doe
- *               password:
+ *               oldPassword:
+ *                 type: string
+ *                 example: password123
+ *               newPassword:
  *                 type: string
  *                 example: newpassword123
  *     responses:
  *       200:
  *         description: User updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 _id:
- *                   type: string
- *                 name:
- *                   type: string
- *                 email:
- *                   type: string
- *       401:
- *         description: Not authorized
  */
 router.put("/profile", protect, updateUserProfile);
 

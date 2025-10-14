@@ -5,12 +5,21 @@ import authRoutes from "./routes/authRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import swaggerDocs from "./swagger/swaggerConfig.js";
+import cors from "cors";
 
 dotenv.config();
 connectDB();
 
 const app = express();
-app.use(express.json());
+
+// ⚡ Middleware order matters
+app.use(cors({
+  origin: "http://localhost:3000",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
+app.use(express.json()); // parse JSON body
 
 // Routes
 app.use("/api/auth", authRoutes);
