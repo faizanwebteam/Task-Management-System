@@ -1,301 +1,142 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef, } from "react";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
 
 function Dashboard() {
-  const navigate = useNavigate();
-  const [tasks, setTasks] = useState([]);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [editingTask, setEditingTask] = useState(null); // <-- for edit mode
-  const [editTitle, setEditTitle] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const token = localStorage.getItem("token");
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [clockedIn, setClockedIn] = useState(false);
+  const [clockInTime, setClockInTime] = useState(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const { token } = useContext(AuthContext)
+  const intervalRef = useRef(null);
 
+  // Update current time every second
   useEffect(() => {
-    if (!token) {
-      navigate("/login");
-    } else {
-      fetchTasks();
-    }
-    // eslint-disable-next-line
-  }, [statusFilter]);
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+      if (clockedIn) {
+        setElapsedSeconds((prev) => prev + 1);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [clockedIn]);
 
-  const fetchTasks = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/tasks`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        let filtered = data;
-        if (statusFilter !== "all") {
-          filtered = data.filter((task) => task.status === statusFilter);
+  // Fetch last attendance record
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/attendance/last`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (res.ok && data) {
+          if (data.clockOutTime === null) {
+            // user is still clocked in
+            const clockIn = new Date(data.clockInTime);
+            setClockInTime(clockIn);
+            setClockedIn(true);
+            const elapsed = Math.floor((new Date() - clockIn) / 1000);
+            setElapsedSeconds(elapsed);
+          }
         }
-        setTasks(filtered);
-      } else {
-        console.error("Failed to fetch tasks:", data.message);
+      } catch (error) {
+        console.error("Failed to fetch last attendance:", error);
       }
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
-    }
+    };
+    fetchAttendance();
+  }, [token]);
+
+  const formatTime = (seconds) => {
+    const h = Math.floor(seconds / 3600).toString().padStart(2, "0");
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${h}:${m}:${s}`;
   };
 
-  const handleAddTask = async (e) => {
-    e.preventDefault();
+  const handleClockIn = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/tasks`, {
+      const res = await fetch(`${API_BASE_URL}/api/attendance/clockin`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+        headers: { 
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
         },
-        body: JSON.stringify({ title, description }),
       });
-
       const data = await res.json();
       if (res.ok) {
-        setTitle("");
-        setDescription("");
-        fetchTasks();
+        const clockIn = new Date(data.clockInTime);
+        setClockInTime(clockIn);
+        setClockedIn(true);
+        setElapsedSeconds(0);
       } else {
-        alert(data.message || "Failed to add task");
+        alert(data.message || "Failed to clock in");
       }
     } catch (error) {
-      console.error("Error adding task:", error);
+      console.error("Clock in error:", error);
     }
   };
 
-  // ✅ Handle edit save
-  const handleEditTask = async (id) => {
+  const handleClockOut = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await fetch(`${API_BASE_URL}/api/attendance/clockout`, {
+        method: "POST",
+        headers: { 
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
         },
-        body: JSON.stringify({ title: editTitle, description: editDescription }),
       });
-
+      const data = await res.json();
       if (res.ok) {
-        setEditingTask(null);
-        fetchTasks();
+        setClockedIn(false);
+        setClockInTime(null);
+        setElapsedSeconds(0);
       } else {
-        console.error("Failed to update task");
+        alert(data.message || "Failed to clock out");
       }
     } catch (error) {
-      console.error("Error updating task:", error);
+      console.error("Clock out error:", error);
     }
   };
-
-  const deleteTask = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this task?")) return;
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        fetchTasks();
-      } else {
-        console.error("Failed to delete task");
-      }
-    } catch (error) {
-      console.error("Error deleting task:", error);
-    }
-  };
-
-  // ✅ Toggle task status
-  const toggleTaskStatus = async (id, currentStatus) => {
-    try {
-      const newStatus = currentStatus === "completed" ? "pending" : "completed";
-      const res = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (res.ok) {
-        fetchTasks();
-      } else {
-        console.error("Failed to toggle task status");
-      }
-    } catch (error) {
-      console.error("Error toggling status:", error);
-    }
-  };
-
 
   return (
-    <div className="container mx-auto p-6">
-      <h2 className="text-3xl font-bold mb-6 text-gray-800 flex items-center gap-2">
-        <span role="img" aria-label="clipboard">📋</span> Dashboard
-      </h2>
+    <div className="flex min-h-screen bg-gray-50">
+      <div className="flex-1 flex flex-col">
+        <main className="flex-1 p-6 container mx-auto">
+          <h2 className="text-3xl font-bold text-gray-800 mb-4">
+            Attendance Tracker
+          </h2>
 
-      {/* Add Task Form */}
-      <form
-        onSubmit={handleAddTask}
-        className="flex flex-col md:flex-row md:items-center gap-4 mb-8"
-      >
-        <input
-          type="text"
-          placeholder="Task title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-          className="flex-grow px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-        />
-        <input
-          type="text"
-          placeholder="Description (optional)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="flex-grow px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-        />
-        <button
-          type="submit"
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2 rounded-lg transition"
-        >
-          Add Task
-        </button>
-      </form>
+          {/* Current Time */}
+          <div className="text-xl text-gray-700 mb-6">
+            Current Time: <span className="font-mono">{currentTime.toLocaleTimeString()}</span>
+          </div>
 
-      {/* Filter */}
-      <div className="mb-6 flex items-center gap-2">
-        <label htmlFor="statusFilter" className="font-semibold text-gray-700">
-          Filter:</label>
-        <select
-          id="statusFilter"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-        >
-          <option value="all">All</option>
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-        </select>
-      </div>
+          {/* Clock In / Clock Out */}
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <button
+              onClick={clockedIn ? handleClockOut : handleClockIn}
+              className={`px-6 py-3 rounded-lg text-white font-semibold shadow-md transition ${
+                clockedIn ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
+              }`}
+            >
+              {clockedIn ? "Clock Out" : "Clock In"}
+            </button>
 
-      {/* Task Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border border-gray-200 rounded-lg shadow-md">
-          <thead>
-            <tr className="bg-gray-100 text-gray-700 uppercase text-sm font-semibold">
-              <th className="py-3 px-4 border-b text-left">No</th>
-              <th className="py-3 px-4 border-b text-left">Title</th>
-              <th className="py-3 px-4 border-b text-left">Description</th>
-              <th className="py-3 px-4 border-b text-left">Status</th>
-              <th className="py-3 px-4 border-b text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.length > 0 ? (
-              tasks.map((task, index) => (
-                <tr key={task._id} className="even:bg-gray-50 hover:bg-indigo-50 transition">
-                  <td className="py-3 px-4 border-b">{index + 1}</td>
-
-                  {/* Inline edit fields */}
-                  {editingTask === task._id ? (
-                    <>
-                      <td className="py-3 px-4 border-b">
-                        <input
-                          type="text"
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          className="border border-gray-300 rounded-md px-2 py-1 w-full"
-                        />
-                      </td>
-                      <td className="py-3 px-4 border-b">
-                        <input
-                          type="text"
-                          value={editDescription}
-                          onChange={(e) => setEditDescription(e.target.value)}
-                          className="border border-gray-300 rounded-md px-2 py-1 w-full"
-                        />
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="py-3 px-4 border-b">{task.title}</td>
-                      <td className="py-3 px-4 border-b">{task.description || "-"}</td>
-                    </>
-                  )}
-
-                  <td className="py-3 px-4 border-b">
-                    <span
-                      className={`font-semibold ${task.status === "completed" ? "text-green-600" : "text-orange-500"
-                        }`}
-                    >
-                      {task.status}
-                    </span>
-                  </td>
-
-                  <td className="py-3 px-4 border-b flex gap-2">
-                    {editingTask === task._id ? (
-                      <>
-                        <button
-                          onClick={() => handleEditTask(task._id)}
-                          className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setEditingTask(null)}
-                          className="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded-md"
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => {
-                            setEditingTask(task._id);
-                            setEditTitle(task.title);
-                            setEditDescription(task.description);
-                          }}
-                          className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-md"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => deleteTask(task._id)}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md"
-                        >
-                          Delete
-                        </button>
-                        <button
-                          onClick={() => toggleTaskStatus(task._id, task.status)}
-                          className={`px-3 py-1 rounded-md text-white transition ${task.status === "completed"
-                              ? "bg-orange-500 hover:bg-orange-600"
-                              : "bg-green-600 hover:bg-green-700"
-                            }`}
-                        >
-                          {task.status === "completed" ? "Mark Pending" : "Mark Done"}
-                        </button>
-                      </>
-
-                    )}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="5" className="py-6 text-center text-gray-500 italic">
-                  No tasks found.
-                </td>
-              </tr>
+            {clockedIn && (
+              <div className="text-gray-800 text-lg font-mono">
+                Time Worked: {formatTime(elapsedSeconds)}
+              </div>
             )}
-          </tbody>
-        </table>
+          </div>
+
+          {clockInTime && (
+            <p className="mt-4 text-gray-600">
+              Clocked in at: {clockInTime.toLocaleTimeString()}
+            </p>
+          )}
+        </main>
       </div>
     </div>
   );

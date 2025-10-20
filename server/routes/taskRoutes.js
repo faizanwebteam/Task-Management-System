@@ -1,6 +1,6 @@
 import express from "express";
 const router = express.Router();
-
+import { authorizeRoles } from "../middleware/roleMiddleware.js";
 import { protect } from "../middleware/authMiddleware.js";
 import {
   createTask,
@@ -8,6 +8,9 @@ import {
   getTaskById,
   updateTask,
   deleteTask,
+  startTime,
+  stopTime,
+  pauseTime,
 } from "../controllers/taskController.js";
 
 /**
@@ -46,7 +49,7 @@ import {
  *       400:
  *         description: Invalid task data
  */
-router.post("/", protect, createTask);
+router.post("/", protect, authorizeRoles("hr", "user"), createTask);
 
 /**
  * @swagger
@@ -66,7 +69,7 @@ router.post("/", protect, createTask);
  *               items:
  *                 $ref: '#/components/schemas/Task'
  */
-router.get("/", protect, getTasks);
+router.get("/", protect, authorizeRoles("hr", "user"), getTasks);
 
 /**
  * @swagger
@@ -97,7 +100,7 @@ router.get("/", protect, getTasks);
  *       404:
  *         description: Task not found
  */
-router.delete("/:id", protect, deleteTask);
+router.delete("/:id", protect, authorizeRoles("hr", "user"), deleteTask);
 
 /**
  * @swagger
@@ -124,7 +127,7 @@ router.delete("/:id", protect, deleteTask);
  *       404:
  *         description: Task not found
  */
-router.get("/:id", protect, getTaskById);
+router.get("/:id", protect, authorizeRoles("hr", "user"), getTaskById);
 
 /**
  * @swagger
@@ -168,9 +171,80 @@ router.get("/:id", protect, getTaskById);
  *       404:
  *         description: Task not found
  */
-router.put("/:id", protect, updateTask);
+router.put("/:id", protect, authorizeRoles("hr", "user"), updateTask);
 
 export default router;
+
+/**
+ * @swagger
+ * /api/tasks/{id}/starttime:
+ *   put:
+ *     summary: Start timer for a task (Start Time)
+ *     tags: [Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Task ID to start timer
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Timer started successfully
+ *       400:
+ *         description: Task not found
+ */
+router.put("/:id/starttime", authorizeRoles("hr", "user"), protect, startTime);
+
+/**
+ * @swagger
+ * /api/tasks/{id}/stoptime:
+ *   put:
+ *     summary: Stop timer for a task (Stop Time)
+ *     tags: [Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Task ID to stop timer
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Timer stopped successfully
+ *       400:
+ *         description: Task not found or timer not active
+ */
+router.put("/:id/stoptime", authorizeRoles("hr", "user"), protect, stopTime);
+
+/**
+ * @swagger
+ * /api/tasks/{id}/pausetime:
+ *   put:
+ *     summary: Pause timer for a task (Pause Time)
+ *     tags: [Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Task ID to pause timer
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Timer paused successfully
+ *       400:
+ *         description: Task not found or timer not running
+ */
+router.put("/:id/pausetime", authorizeRoles("hr", "user"), protect, pauseTime);
+
+
 
 /**
  * @swagger

@@ -1,7 +1,20 @@
 import express from "express";
 const router = express.Router();
 import { protect } from "../middleware/authMiddleware.js";
-import { getMe, updateUserProfile } from "../controllers/userController.js";
+import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import {
+  getUserProfile,
+  updateUserProfile,
+  getAllUsers,
+  deleteUser,
+} from "../controllers/userController.js";
+
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: User management and profile APIs
+ */
 
 /**
  * @swagger
@@ -15,7 +28,7 @@ import { getMe, updateUserProfile } from "../controllers/userController.js";
  *       200:
  *         description: User profile
  */
-router.get("/me", protect, getMe);
+router.get("/me", protect, authorizeRoles("hr", "user"), getUserProfile);
 
 /**
  * @swagger
@@ -45,6 +58,41 @@ router.get("/me", protect, getMe);
  *       200:
  *         description: User updated successfully
  */
-router.put("/profile", protect, updateUserProfile);
+router.put("/profile", protect, authorizeRoles("hr", "user"), updateUserProfile);
+
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Get all users (HR only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all users
+ */
+router.get("/", protect, authorizeRoles("hr"), getAllUsers);
+
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   delete:
+ *     summary: Delete a user (HR only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ */
+router.delete("/:id", protect, authorizeRoles("hr"), deleteUser);
 
 export default router;

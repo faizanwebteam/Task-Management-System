@@ -1,7 +1,6 @@
 import express from "express";
 const router = express.Router();
-import { registerUser, loginUser } from "../controllers/authController.js";
-import { getMe, updateUserProfile } from "../controllers/userController.js";
+import { registerUser, loginUser, getMe } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 /**
@@ -15,7 +14,7 @@ import { protect } from "../middleware/authMiddleware.js";
  * @swagger
  * /api/auth/register:
  *   post:
- *     summary: Register a new user
+ *     summary: Register a new user (HR or normal user)
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -37,9 +36,28 @@ import { protect } from "../middleware/authMiddleware.js";
  *               password:
  *                 type: string
  *                 example: password123
+ *               role:
+ *                 type: string
+ *                 enum: ["hr", "user"]
+ *                 example: hr
  *     responses:
  *       201:
  *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *                 token:
+ *                   type: string
  *       400:
  *         description: User already exists / invalid data
  */
@@ -78,6 +96,15 @@ router.post("/register", registerUser);
  *                 message:
  *                   type: string
  *                   example: Login successful
+ *                 _id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *                   example: hr
  *                 token:
  *                   type: string
  *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -86,14 +113,6 @@ router.post("/register", registerUser);
  *                   example: Bearer
  *       401:
  *         description: Invalid credentials
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Invalid email or password
  */
 router.post("/login", loginUser);
 
@@ -108,6 +127,19 @@ router.post("/login", loginUser);
  *     responses:
  *       200:
  *         description: User info returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 role:
+ *                   type: string
  *       401:
  *         description: Not authorized
  */

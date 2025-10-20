@@ -1,3 +1,5 @@
+// src/context/AuthContext.jsx
+
 import React, { createContext, useState, useEffect } from "react";
 
 // Create Context
@@ -5,36 +7,45 @@ export const AuthContext = createContext();
 
 // Provider component
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // store user info
-  const [token, setToken] = useState(localStorage.getItem("token") || null);
+  // Initialize state from localStorage
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem("user");
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+  
+  const [token, setToken] = useState(() => {
+    return localStorage.getItem("token");
+  });
 
-  // Load user from localStorage on mount
+  // Update localStorage whenever user or token changes
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-
-    if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setToken(storedToken);
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("user");
     }
-  }, []);
+  }, [user]);
 
-  // Login function
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem("token", token);
+    } else {
+      localStorage.removeItem("token");
+    }
+  }, [token]);
+
+  // Login function: store in memory and localStorage
   const login = (userData, jwtToken) => {
-    localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("token", jwtToken);
-
     setUser(userData);
     setToken(jwtToken);
   };
 
-  // Logout function
+  // Logout function: clear memory and localStorage
   const logout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-
     setUser(null);
     setToken(null);
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
   };
 
   return (

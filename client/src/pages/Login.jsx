@@ -12,9 +12,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,16 +29,15 @@ export default function Login() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Login failed");
 
-      localStorage.setItem("token", data.token);
-
-      const userRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${data.token}` },
-      });
-
-      const userData = await userRes.json();
-      if (!userRes.ok) throw new Error(userData.message || "Failed to fetch user info");
-
+      // Save token and user info in AuthContext
+      const userData = { 
+        _id: data._id, 
+        name: data.name, 
+        email: data.email, 
+        role: data.role 
+      };
       login(userData, data.token);
+
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
@@ -50,20 +47,26 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-white to-indigo-50">
-      <div className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md border border-gray-100">
-        <h2 className="text-3xl font-bold text-center text-indigo-600 mb-6">Welcome 👋</h2>
-        <p className="text-center text-gray-500 mb-8">Sign in to continue to your dashboard</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-white to-indigo-50 px-4 sm:px-6">
+      <div className="bg-white shadow-xl rounded-2xl p-6 sm:p-8 w-full max-w-md border border-gray-100">
+        <h2 className="text-2xl sm:text-3xl font-bold text-center text-indigo-600 mb-4 sm:mb-6">
+          Welcome 👋
+        </h2>
+        <p className="text-center text-gray-500 mb-6 sm:mb-8 text-sm sm:text-base">
+          Sign in to continue to your dashboard
+        </p>
 
         {error && (
-          <div className="bg-red-100 text-red-700 px-4 py-2 rounded-md mb-4 border border-red-200">
+          <div className="bg-red-100 text-red-700 px-3 sm:px-4 py-2 rounded-md mb-4 border border-red-200 text-sm sm:text-base">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
           <div>
-            <label className="block text-gray-700 font-medium mb-1">Email</label>
+            <label className="block text-gray-700 font-medium mb-1 text-sm sm:text-base">
+              Email
+            </label>
             <input
               name="email"
               type="email"
@@ -71,12 +74,14 @@ export default function Login() {
               value={form.email}
               onChange={handleChange}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none text-sm sm:text-base"
             />
           </div>
 
           <div>
-            <label className="block text-gray-700 font-medium mb-1">Password</label>
+            <label className="block text-gray-700 font-medium mb-1 text-sm sm:text-base">
+              Password
+            </label>
             <input
               name="password"
               type="password"
@@ -84,14 +89,14 @@ export default function Login() {
               value={form.password}
               onChange={handleChange}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none text-sm sm:text-base"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-3 rounded-lg text-white font-semibold transition-all duration-200 ${
+            className={`w-full py-3 rounded-lg text-white font-semibold transition-all duration-200 text-sm sm:text-base ${
               loading
                 ? "bg-indigo-400 cursor-not-allowed"
                 : "bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg"
@@ -101,7 +106,7 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="text-center text-gray-600 mt-6">
+        <p className="text-center text-gray-600 mt-4 sm:mt-6 text-sm sm:text-base">
           Don’t have an account?{" "}
           <Link
             to="/register"

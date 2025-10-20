@@ -1,16 +1,27 @@
 import User from "../models/userModel.js";
 
-// @desc    Get logged-in user profile
-// @route   GET /api/users/me
-// @access  Private
-export const getMe = async (req, res) => {
-  const user = await User.findById(req.user._id).select("-password");
-  res.json(user);
+// @desc Get all users (HR only)
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select("-password");
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
-// @desc    Update logged-in user's profile
-// @route   PUT /api/users/profile
-// @access  Private
+// @desc Get logged-in user's profile
+export const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc Update logged-in user's profile
 export const updateUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -18,10 +29,8 @@ export const updateUserProfile = async (req, res) => {
 
     const { name, oldPassword, newPassword } = req.body;
 
-    // Update name if provided
     if (name) user.name = name;
 
-    // Update password if oldPassword + newPassword provided
     if (oldPassword && newPassword) {
       const isMatch = await user.matchPassword(oldPassword);
       if (!isMatch)
@@ -36,7 +45,21 @@ export const updateUserProfile = async (req, res) => {
       _id: updatedUser._id,
       name: updatedUser.name,
       email: updatedUser.email,
+      role: updatedUser.role, // include role in response
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc HR delete a user
+export const deleteUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    await user.remove();
+    res.json({ message: "User deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
