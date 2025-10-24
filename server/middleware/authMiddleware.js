@@ -14,9 +14,9 @@ export const protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Check if token exists in DB
-    const user = await User.findOne({ _id: decoded.id, token });
-    if (!user) return res.status(401).json({ message: "Token invalid or expired" });
+    // Fetch user by id (stateless JWT). Password is excluded by default in schema.
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user) return res.status(401).json({ message: "Token invalid or user not found" });
 
     req.user = user;
     next();

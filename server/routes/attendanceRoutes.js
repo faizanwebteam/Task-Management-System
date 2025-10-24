@@ -36,7 +36,7 @@ const router = express.Router();
  *       400:
  *         description: Already clocked in
  */
-router.post("/clockin", authorizeRoles("hr", "user"), protect, clockIn);
+router.post("/clockin", protect, authorizeRoles("hr", "user"), clockIn);
 
 /**
  * @swagger
@@ -56,7 +56,7 @@ router.post("/clockin", authorizeRoles("hr", "user"), protect, clockIn);
  *       400:
  *         description: Not clocked in yet
  */
-router.post("/clockout", authorizeRoles("hr", "user"), protect, clockOut);
+router.post("/clockout", protect, authorizeRoles("hr", "user"), clockOut);
 
 /**
  * @swagger
@@ -99,7 +99,7 @@ router.get("/last", protect, authorizeRoles("hr", "user"), getLastAttendance);
  *       500:
  *         description: Server error
  */
-router.get("/history", authorizeRoles("hr", "user"), protect, getAttendanceHistory);
+router.get("/history", protect, authorizeRoles("hr", "user"), getAttendanceHistory);
 
 export default router;
 

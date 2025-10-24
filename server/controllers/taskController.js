@@ -163,6 +163,36 @@ export const pauseTime = async (req, res) => {
   }
 };
 
+export const resumeTime = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ message: "Task not found" });
+    if (!task.paused) return res.status(400).json({ message: "Task not paused" });
+
+    task.activeTimer = new Date();
+    task.paused = false;
+    task.timerRunning = true;
+
+    // Start a new session for resumed time
+    task.sessions = task.sessions || [];
+    task.sessions.push({ startTime: task.activeTimer, endTime: null });
+
+    await task.save();
+
+    res.status(200).json({
+      message: "Timer resumed",
+      activeTimer: task.activeTimer,
+      totalTime: task.totalTimeSpent,
+      running: true,
+      paused: false,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
 // STOP TIMER
 export const stopTime = async (req, res) => {
   try {

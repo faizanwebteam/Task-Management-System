@@ -49,7 +49,6 @@ const Header = ({ user, onLogout }) => {
           </button>
 
         <h1
-          onClick={() => navigate("/dashboard")}
           className="text-xl font-semibold tracking-wide cursor-pointer hover:text-indigo-400 transition-colors"
         >
           Task Manager
@@ -58,12 +57,6 @@ const Header = ({ user, onLogout }) => {
 
         {/* Desktop Menu */}
         <nav className="hidden md:flex gap-6 items-center">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="text-sm font-medium hover:text-indigo-400 transition-colors"
-          >
-            Dashboard
-          </button>
           <button
             onClick={() => navigate("/profile")}
             className="text-sm font-medium hover:text-indigo-400 transition-colors"

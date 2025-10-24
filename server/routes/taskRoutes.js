@@ -11,6 +11,7 @@ import {
   startTime,
   stopTime,
   pauseTime,
+  resumeTime
 } from "../controllers/taskController.js";
 
 /**
@@ -196,7 +197,7 @@ export default router;
  *       400:
  *         description: Task not found
  */
-router.put("/:id/starttime", authorizeRoles("hr", "user"), protect, startTime);
+router.put("/:id/starttime", protect, authorizeRoles("hr", "user"), startTime);
 
 /**
  * @swagger
@@ -219,7 +220,7 @@ router.put("/:id/starttime", authorizeRoles("hr", "user"), protect, startTime);
  *       400:
  *         description: Task not found or timer not active
  */
-router.put("/:id/stoptime", authorizeRoles("hr", "user"), protect, stopTime);
+router.put("/:id/stoptime", protect, authorizeRoles("hr", "user"), stopTime);
 
 /**
  * @swagger
@@ -242,7 +243,79 @@ router.put("/:id/stoptime", authorizeRoles("hr", "user"), protect, stopTime);
  *       400:
  *         description: Task not found or timer not running
  */
-router.put("/:id/pausetime", authorizeRoles("hr", "user"), protect, pauseTime);
+router.put("/:id/pausetime", protect, authorizeRoles("hr", "user"), pauseTime);
+
+/**
+ * @swagger
+ * /api/tasks/{id}/resumetime:
+ *   put:
+ *     summary: Resume a paused timer for a task
+ *     tags: [Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Task ID to resume timer
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Timer resumed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Timer resumed
+ *                 activeTimer:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2025-10-24T12:34:56.789Z"
+ *                 totalTime:
+ *                   type: integer
+ *                   example: 120
+ *                 running:
+ *                   type: boolean
+ *                   example: true
+ *                 paused:
+ *                   type: boolean
+ *                   example: false
+ *       400:
+ *         description: Task not paused or invalid request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Task not paused
+ *       401:
+ *         description: Not authorized / token missing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Not authorized
+ *       404:
+ *         description: Task not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Task not found
+ */
+router.put("/:id/resumetime", protect, authorizeRoles("hr", "user"), resumeTime);
 
 
 

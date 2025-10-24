@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTimer } from "../context/TimerContext";
+import { AuthContext } from "../context/AuthContext";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
 
@@ -13,7 +14,7 @@ function Task() {
   });
   const [statusFilter, setStatusFilter] = useState("all");
   const [editingTask, setEditingTask] = useState(null);
-  const token = localStorage.getItem("token");
+  const { token, authLoading } = useContext(AuthContext);
   const { timers, startTimer, pauseTimer, stopTimer, resumeTimer, formatTime, refreshTimers } = useTimer();
 
   const formatDateTime = (isoString) => {
@@ -45,9 +46,16 @@ function Task() {
   }, [token, statusFilter, refreshTimers]);
 
   useEffect(() => {
-    if (!token) navigate("/login");
-    else fetchTasks();
-  }, [token, navigate, fetchTasks]);
+    if (!authLoading && token) {
+      fetchTasks();
+    }
+  }, [authLoading, token, fetchTasks]);
+
+  useEffect(() => {
+    if (!authLoading && !token) {
+      navigate("/login");
+    }
+  }, [authLoading, token, navigate]);
 
   // Start / Resume Timer
   const handleStartResume = async (id) => {

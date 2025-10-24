@@ -3,6 +3,9 @@ import jwt from "jsonwebtoken";
 
 // Generate JWT
 const generateToken = (userId) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not defined");
+  }
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
@@ -12,7 +15,7 @@ const generateToken = (userId) => {
 // @route   POST /api/auth/register
 // @access  Public
 export const registerUser = async (req, res) => {
-  const { name, email, password, role } = req.body; // include role if passed (e.g., "user" or "hr")
+  const { name, email, password } = req.body;
 
   try {
     const userExists = await User.findOne({ email });
@@ -23,7 +26,7 @@ export const registerUser = async (req, res) => {
       name,
       email,
       password,
-      role: role || "user", // default role = user
+      role: "user", // enforce default role
     });
 
     if (user) {
@@ -47,25 +50,21 @@ export const registerUser = async (req, res) => {
 // @desc    Login user & get JWT
 // @route   POST /api/auth/login
 // @access  Public
-// controllers/authController.js
 export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    // explicitly select password since it's select: false
+    const user = await User.findOne({ email }).select("+password");
     if (user && (await user.matchPassword(password))) {
       const token = generateToken(user._id);
-
-      // Save token in database
-      user.token = token;
-      await user.save();
 
       res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        token, // send token to frontend
+        token,
       });
     } else {
       res.status(401).json({ message: "Invalid email or password" });
@@ -74,7 +73,6 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 // @desc    Get logged-in user's profile
 // @route   GET /api/auth/me

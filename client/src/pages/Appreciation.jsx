@@ -4,7 +4,7 @@ import { AuthContext } from "../context/AuthContext";
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
 
 function Appreciation() {
-  const { user, token } = useContext(AuthContext);
+  const { user, token, authLoading } = useContext(AuthContext);
   const isHR = user?.role === "hr";
 
   const [appreciations, setAppreciations] = useState([]);
@@ -14,9 +14,12 @@ function Appreciation() {
   const [givenBy, setGivenBy] = useState("");
   const [editingId, setEditingId] = useState(null);
 
-  useEffect(() => {
-    fetchAppreciations();
-  }, []);
+useEffect(() => {
+    if (!authLoading && token) {
+      fetchAppreciations();
+    }
+  }, [authLoading, token]); 
+
 
   // Fetch all appreciations
   const fetchAppreciations = async () => {

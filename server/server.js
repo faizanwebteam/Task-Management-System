@@ -19,14 +19,16 @@ connectDB();
 
 const app = express();
 
-// ✅ Correct CORS setup
-app.use(cors({
-  origin: "http://localhost:3000",
-  methods: ["GET", "POST", "PUT", "DELETE"],
+// ✅ CORS setup - MUST be before other middleware
+const corsOptions = {
+  origin: process.env.CLIENT_URL || "http://localhost:3000",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
-}));
+  credentials: true,
+  optionsSuccessStatus: 200
+};
 
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Routes

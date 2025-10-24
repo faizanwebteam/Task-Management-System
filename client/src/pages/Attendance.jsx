@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import Sidebar from "../components/Sidebar";
 import { format } from "date-fns";
+import { AuthContext } from "../context/AuthContext";
 
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
@@ -11,7 +12,7 @@ function Attendance() {
   const [clockedIn, setClockedIn] = useState(false);
   const [timer, setTimer] = useState(0);
   const intervalRef = useRef(null);
-  const token = localStorage.getItem("token");
+  const { token, authLoading } = useContext(AuthContext);
 
   // Fetch last record
   const fetchLastLog = async () => {
@@ -64,19 +65,22 @@ function Attendance() {
 
   // Initial fetch on mount
   useEffect(() => {
-    fetchLastLog();
-    fetchHistory();
-  }, []);
+    if (!authLoading && token) {
+      fetchLastLog();
+      fetchHistory();
+    }
+  }, [authLoading, token]);
 
   // Auto-refresh last log & history every 1 minute
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchLastLog();
-      fetchHistory();
-    }, 60000); // 60 seconds
-
-    return () => clearInterval(interval);
-  }, []);
+    if (!authLoading && token) {
+      const interval = setInterval(() => {
+        fetchLastLog();
+        fetchHistory();
+      }, 60000); // 60 seconds
+      return () => clearInterval(interval);
+    }
+  }, [authLoading, token]);
 
   // Timer for active session
   useEffect(() => {
@@ -90,6 +94,7 @@ function Attendance() {
 
   // Clock In
   const handleClockIn = async () => {
+    if (authLoading || !token) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/attendance/clockin`, {
         method: "POST",
@@ -114,6 +119,7 @@ function Attendance() {
 
   // Clock Out
   const handleClockOut = async () => {
+    if (authLoading || !token) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/attendance/clockout`, {
         method: "POST",

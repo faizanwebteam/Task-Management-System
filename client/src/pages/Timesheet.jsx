@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { useTimer } from "../context/TimerContext";
+import { AuthContext } from "../context/AuthContext";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
 
 function Timesheet() {
   const [tasks, setTasks] = useState([]);
-  const token = localStorage.getItem("token");
+  const { token } = useContext(AuthContext);
   const { timers, formatTime } = useTimer();
 
   useEffect(() => {
-    fetchTasks();
-  }, []);
+    if (token) fetchTasks();
+  }, [token]);
 
   const fetchTasks = async () => {
     try {
