@@ -6,7 +6,6 @@ import Footer from "./components/Footer";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
-import Profile from "./pages/Profile";
 import Task from "./pages/Task";
 import Timesheet from "./pages/Timesheet";
 import Projects from "./pages/Projects";
@@ -37,7 +36,6 @@ function AppWrapper() {
             <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/profile" element={<Profile />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/work/tasks" element={<Task />} />
             <Route path="/work/timesheet" element={<Timesheet />} />

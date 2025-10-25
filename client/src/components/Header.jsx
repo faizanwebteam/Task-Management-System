@@ -58,7 +58,7 @@ const Header = ({ user, onLogout }) => {
         {/* Desktop Menu */}
         <nav className="hidden md:flex gap-6 items-center">
           <button
-            onClick={() => navigate("/profile")}
+            onClick={() => navigate("/settings")}
             className="text-sm font-medium hover:text-indigo-400 transition-colors"
           >
             Profile

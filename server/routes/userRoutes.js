@@ -29,7 +29,6 @@ import {
  *         description: User profile
  */
 router.get("/me", protect, authorizeRoles("hr", "user"), getUserProfile);
-
 /**
  * @swagger
  * /api/users/profile:
@@ -54,10 +53,25 @@ router.get("/me", protect, authorizeRoles("hr", "user"), getUserProfile);
  *               newPassword:
  *                 type: string
  *                 example: newpassword123
+ *               mob:
+ *                 type: string
+ *                 example: "+1234567890"
+ *               dob:
+ *                 type: string
+ *                 format: date
+ *                 example: "1990-01-01"
+ *               gender:
+ *                 type: string
+ *                 enum: [male, female, other]
+ *                 example: male
+ *               country:
+ *                 type: string
+ *                 example: USA
  *     responses:
  *       200:
  *         description: User updated successfully
  */
+
 router.put("/profile", protect, authorizeRoles("hr", "user"), updateUserProfile);
 
 /**

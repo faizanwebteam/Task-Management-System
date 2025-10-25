@@ -6,9 +6,14 @@ const userSchema = mongoose.Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    // Do not return password by default
     password: { type: String, required: true, select: false },
     role: { type: String, enum: ["user", "hr"], default: "user" },
+
+    // New fields
+    mob: { type: String },                // mobile number
+    dob: { type: Date },                  // date of birth
+    gender: { type: String, enum: ["male", "female", "other"] },
+    country: { type: String },
   },
   { timestamps: true }
 );
@@ -23,7 +28,6 @@ userSchema.pre("save", async function (next) {
 
 // Match entered password with hashed password
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  // "this.password" is available because this method is called on a doc that included password
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

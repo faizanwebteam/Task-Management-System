@@ -28,10 +28,24 @@ export const updateUserProfile = async (req, res) => {
     const user = await User.findById(req.user._id).select("+password");
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const { name, oldPassword, newPassword } = req.body;
+    const {
+      name,
+      oldPassword,
+      newPassword,
+      mob,
+      dob,
+      gender,
+      country,
+    } = req.body;
 
+    // Update basic fields
     if (name) user.name = name;
+    if (mob) user.mob = mob;
+    if (dob) user.dob = dob;
+    if (gender) user.gender = gender;
+    if (country) user.country = country;
 
+    // Update password if provided
     if (oldPassword && newPassword) {
       const isMatch = await user.matchPassword(oldPassword);
       if (!isMatch)
@@ -46,7 +60,11 @@ export const updateUserProfile = async (req, res) => {
       _id: updatedUser._id,
       name: updatedUser.name,
       email: updatedUser.email,
-      role: updatedUser.role, // include role in response
+      role: updatedUser.role,
+      mob: updatedUser.mob || "",
+      dob: updatedUser.dob || "",
+      gender: updatedUser.gender || "",
+      country: updatedUser.country || "",
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -1,10 +1,14 @@
-import { useState } from "react";
+// Pages/Register.jsx
+import { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
 
 export default function Register() {
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext); // <-- use AuthContext to login after registration
+
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "user" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -18,6 +22,7 @@ export default function Register() {
     setError("");
 
     try {
+      // 1️⃣ Register user
       const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -27,7 +32,30 @@ export default function Register() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Registration failed");
 
-      navigate("/login");
+      // 2️⃣ Auto-login immediately
+      const loginRes = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, password: form.password }),
+      });
+
+      const loginData = await loginRes.json();
+      if (!loginRes.ok) throw new Error(loginData.message || "Login failed");
+
+      // 3️⃣ Save user and token in AuthContext
+      login(
+        {
+          _id: loginData._id,
+          name: loginData.name,
+          email: loginData.email,
+          role: loginData.role,
+        },
+        loginData.token
+      );
+
+      // 4️⃣ Navigate to dashboard
+      navigate("/dashboard");
+
     } catch (err) {
       setError(err.message);
     } finally {
