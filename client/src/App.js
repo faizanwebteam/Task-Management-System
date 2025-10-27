@@ -22,7 +22,7 @@ function AppWrapper() {
   const user = JSON.parse(localStorage.getItem("user"));
 
   // Pages where sidebar should NOT be shown
-  const noSidebarPages = ["/login", "/register", "/profile", "/"];
+  const noSidebarPages = ["/login", "/register", "/"];
 
   const showSidebar = !noSidebarPages.includes(location.pathname);
 

@@ -11,22 +11,24 @@ const generateToken = (userId) => {
   });
 };
 
-// @desc    Register a new user
+// @desc    Register a new user (HR or normal user)
 // @route   POST /api/auth/register
 // @access  Public
 export const registerUser = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, role } = req.body; // ✅ include role
 
   try {
+    // Check if user already exists
     const userExists = await User.findOne({ email });
     if (userExists)
       return res.status(400).json({ message: "User already exists" });
 
+    // ✅ Allow hr role only if provided, else default to user
     const user = await User.create({
       name,
       email,
       password,
-      role: "user", // enforce default role
+      role: role === "hr" ? "hr" : "user",
     });
 
     if (user) {
@@ -46,6 +48,7 @@ export const registerUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // @desc    Login user & get JWT
 // @route   POST /api/auth/login
