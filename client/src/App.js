@@ -16,6 +16,10 @@ import Sidebar from "./components/Sidebar";
 import { TimerProvider } from "./context/TimerContext";
 import Appreciation from "./pages/Appreciation";
 import Setting from "./pages/Setting";
+import Tickets from "./pages/Tickets";
+import Roles from "./pages/Roles";
+import AdminCreateUser from "./pages/AdminCreateUser";
+import Message from "./pages/message";
 
 function AppWrapper() {
   const location = useLocation();
@@ -35,6 +39,8 @@ function AppWrapper() {
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/roles" element={<Roles />} />
+            <Route path="/admincreateuser" element= {<AdminCreateUser />} />
             <Route path="/register" element={<Register />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/work/tasks" element={<Task />} />
@@ -44,6 +50,8 @@ function AppWrapper() {
             <Route path="/hr/leaves" element={<Leaves/>} />
             <Route path="/hr/holiday" element={<Holiday/>} />
             <Route path="/hr/appreciation" element={<Appreciation/>} />
+            <Route path="/tickets" element={<Tickets />} />
+            <Route path="/message" element={<Message />} />
             <Route path="/settings" element={<Setting />} />
 
           </Routes>

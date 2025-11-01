@@ -1,7 +1,10 @@
+// routes/authRoutes.js
+
 import express from "express";
 const router = express.Router();
-import { registerUser, loginUser, getMe } from "../controllers/authController.js";
+import { registerUser, loginUser, getMe, createUserByAdmin } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 /**
  * @swagger
@@ -14,7 +17,7 @@ import { protect } from "../middleware/authMiddleware.js";
  * @swagger
  * /api/auth/register:
  *   post:
- *     summary: Register a new user (HR or normal user)
+ *     summary: Register a new user (public — creates a normal user)
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -36,13 +39,9 @@ import { protect } from "../middleware/authMiddleware.js";
  *               password:
  *                 type: string
  *                 example: password123
- *               role:
- *                 type: string
- *                 enum: ["hr", "user"]
- *                 example: hr
  *     responses:
  *       201:
- *         description: User registered successfully
+ *         description: User registered successfully (role will be "user")
  *         content:
  *           application/json:
  *             schema:
@@ -56,6 +55,7 @@ import { protect } from "../middleware/authMiddleware.js";
  *                   type: string
  *                 role:
  *                   type: string
+ *                   example: user
  *                 token:
  *                   type: string
  *       400:
@@ -93,9 +93,6 @@ router.post("/register", registerUser);
  *             schema:
  *               type: object
  *               properties:
- *                 message:
- *                   type: string
- *                   example: Login successful
  *                 _id:
  *                   type: string
  *                 name:
@@ -115,6 +112,50 @@ router.post("/register", registerUser);
  *         description: Invalid credentials
  */
 router.post("/login", loginUser);
+
+/**
+ * @swagger
+ * /api/auth/create:
+ *   post:
+ *     summary: Create a new user (HR/Admin only)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Jane Doe
+ *               email:
+ *                 type: string
+ *                 example: jane@example.com
+ *               password:
+ *                 type: string
+ *                 example: password123
+ *               role:
+ *                 type: string
+ *                 enum: ["user","hr","admin"]
+ *                 example: hr
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *       400:
+ *         description: Validation error / user exists
+ *       403:
+ *         description: Access denied (insufficient role)
+ *       401:
+ *         description: Not authenticated
+ */
+router.post("/create", protect, authorizeRoles("hr", "admin"), createUserByAdmin);
 
 /**
  * @swagger

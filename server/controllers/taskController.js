@@ -1,20 +1,67 @@
+import mongoose from "mongoose";
 import Task from "../models/taskModel.js";
+
+// Helper: check ownership or HR/Admin (if you have roles in req.user)
+const canModifyTask = (reqUser, taskUserId) => {
+  if (!reqUser) return false;
+  if (reqUser.role === "hr" || reqUser.role === "admin") return true;
+  return String(taskUserId) === String(reqUser._id);
+};
 
 // @desc    Create new task
 // @route   POST /api/tasks
 // @access  Private
 export const createTask = async (req, res) => {
   try {
-    const { title, description } = req.body;
-
-    const task = await Task.create({
+    const {
       title,
       description,
-      user: req.user._id,
-    });
+      category, // optional: ObjectId of TaskCategory
+      project, // optional: ObjectId of Project
+      assignedTo, // optional: ObjectId of User
+      startDate,
+      dueDate,
+      status,
+    } = req.body;
 
-    res.status(201).json(task);
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({ message: "Title is required" });
+    }
+
+    // Validate optional ObjectId fields
+    if (category && !mongoose.Types.ObjectId.isValid(category)) {
+      return res.status(400).json({ message: "Invalid category id" });
+    }
+    if (project && !mongoose.Types.ObjectId.isValid(project)) {
+      return res.status(400).json({ message: "Invalid project id" });
+    }
+    if (assignedTo && !mongoose.Types.ObjectId.isValid(assignedTo)) {
+      return res.status(400).json({ message: "Invalid assignedTo user id" });
+    }
+
+    const payload = {
+      title: title.trim(),
+      description: description || "",
+      user: req.user._id,
+      category: category || null,
+      project: project || null,
+      assignedTo: assignedTo || null,
+      startDate: startDate ? new Date(startDate) : null,
+      dueDate: dueDate ? new Date(dueDate) : null,
+      status: status || "pending",
+    };
+
+    const task = await Task.create(payload);
+
+    // Populate relations for response
+    const populated = await Task.findById(task._id)
+      .populate("category", "name")
+      .populate("project", "name code")
+      .populate("assignedTo", "name email role");
+
+    res.status(201).json(populated);
   } catch (error) {
+    console.error("createTask error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -24,9 +71,20 @@ export const createTask = async (req, res) => {
 // @access  Private
 export const getTasks = async (req, res) => {
   try {
-    const tasks = await Task.find({ user: req.user._id });
+    // HR/admin might want all tasks; if so, change this logic as needed.
+    const filter = req.user.role === "hr" || req.user.role === "admin"
+      ? {}
+      : { user: req.user._id };
+
+    const tasks = await Task.find(filter)
+      .populate("category", "name")
+      .populate("project", "name code")
+      .populate("assignedTo", "name email role")
+      .sort({ createdAt: -1 });
+
     res.json(tasks);
   } catch (error) {
+    console.error("getTasks error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -36,12 +94,26 @@ export const getTasks = async (req, res) => {
 // @access  Private
 export const getTaskById = async (req, res) => {
   try {
-    const task = await Task.findOne({ _id: req.params.id, user: req.user._id });
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid task id" });
     }
+
+    const task = await Task.findById(id)
+      .populate("category", "name")
+      .populate("project", "name code")
+      .populate("assignedTo", "name email role");
+
+    if (!task) return res.status(404).json({ message: "Task not found" });
+
+    // enforce ownership unless HR/admin
+    if (!(req.user.role === "hr" || req.user.role === "admin") && String(task.user) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     res.json(task);
   } catch (error) {
+    console.error("getTaskById error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -51,50 +123,108 @@ export const getTaskById = async (req, res) => {
 // @access  Private
 export const updateTask = async (req, res) => {
   try {
-    const task = await Task.findOne({ _id: req.params.id, user: req.user._id });
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid task id" });
     }
 
-    const { title, description, status } = req.body;
+    const task = await Task.findById(id);
+    if (!task) return res.status(404).json({ message: "Task not found" });
+
+    if (!canModifyTask(req.user, task.user)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const {
+      title,
+      description,
+      status,
+      category,
+      project,
+      assignedTo,
+      startDate,
+      dueDate,
+    } = req.body;
+
     if (title !== undefined) task.title = title;
     if (description !== undefined) task.description = description;
     if (status !== undefined) task.status = status;
 
+    if (category !== undefined) {
+      if (category && !mongoose.Types.ObjectId.isValid(category)) {
+        return res.status(400).json({ message: "Invalid category id" });
+      }
+      task.category = category || null;
+    }
+
+    if (project !== undefined) {
+      if (project && !mongoose.Types.ObjectId.isValid(project)) {
+        return res.status(400).json({ message: "Invalid project id" });
+      }
+      task.project = project || null;
+    }
+
+    if (assignedTo !== undefined) {
+      if (assignedTo && !mongoose.Types.ObjectId.isValid(assignedTo)) {
+        return res.status(400).json({ message: "Invalid assignedTo user id" });
+      }
+      task.assignedTo = assignedTo || null;
+    }
+
+    if (startDate !== undefined) task.startDate = startDate ? new Date(startDate) : null;
+    if (dueDate !== undefined) task.dueDate = dueDate ? new Date(dueDate) : null;
+
     const updatedTask = await task.save();
-    res.json(updatedTask);
+
+    const populated = await Task.findById(updatedTask._id)
+      .populate("category", "name")
+      .populate("project", "name code")
+      .populate("assignedTo", "name email role");
+
+    res.json(populated);
   } catch (error) {
+    console.error("updateTask error:", error);
     res.status(500).json({ message: error.message });
   }
 };
+
 // @desc    Delete a task
 // @route   DELETE /api/tasks/:id
 // @access  Private
 export const deleteTask = async (req, res) => {
   try {
-    const task = await Task.findOne({ _id: req.params.id, user: req.user._id });
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid task id" });
+    }
 
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
+    const task = await Task.findById(id);
+    if (!task) return res.status(404).json({ message: "Task not found" });
+
+    if (!canModifyTask(req.user, task.user)) {
+      return res.status(403).json({ message: "Access denied" });
     }
 
     await Task.deleteOne({ _id: task._id });
 
     res.json({ message: "Task deleted successfully" });
   } catch (error) {
+    console.error("deleteTask error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// controllers/taskController.js
-
 // START TIMER
 export const startTime = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid task id" });
+
+    const task = await Task.findById(id);
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // If already running, return current state to keep UI in sync
+    if (!canModifyTask(req.user, task.user)) return res.status(403).json({ message: "Access denied" });
+
     if (task.activeTimer) {
       return res.status(200).json({
         message: "Timer already running",
@@ -109,7 +239,6 @@ export const startTime = async (req, res) => {
     task.paused = false;
     task.timerRunning = true;
 
-    // Start a new session
     task.sessions = task.sessions || [];
     task.sessions.push({ startTime: task.activeTimer, endTime: null });
 
@@ -123,6 +252,7 @@ export const startTime = async (req, res) => {
       paused: false,
     });
   } catch (error) {
+    console.error("startTime error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -130,21 +260,23 @@ export const startTime = async (req, res) => {
 // PAUSE TIMER
 export const pauseTime = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid task id" });
+
+    const task = await Task.findById(id);
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    if (!task.activeTimer)
-      return res.status(400).json({ message: "Timer not running" });
+    if (!canModifyTask(req.user, task.user)) return res.status(403).json({ message: "Access denied" });
 
-    const elapsed =
-      Math.floor((Date.now() - new Date(task.activeTimer)) / 1000) || 0;
+    if (!task.activeTimer) return res.status(400).json({ message: "Timer not running" });
+
+    const elapsed = Math.floor((Date.now() - new Date(task.activeTimer)) / 1000) || 0;
 
     task.totalTimeSpent += elapsed;
     task.activeTimer = null;
     task.paused = true;
     task.timerRunning = false;
 
-    // Close latest session
     if (task.sessions && task.sessions.length > 0) {
       const last = task.sessions[task.sessions.length - 1];
       if (last && !last.endTime) last.endTime = new Date();
@@ -159,21 +291,28 @@ export const pauseTime = async (req, res) => {
       paused: true,
     });
   } catch (error) {
+    console.error("pauseTime error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
+// RESUME TIMER
 export const resumeTime = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid task id" });
+
+    const task = await Task.findById(id);
     if (!task) return res.status(404).json({ message: "Task not found" });
+
+    if (!canModifyTask(req.user, task.user)) return res.status(403).json({ message: "Access denied" });
+
     if (!task.paused) return res.status(400).json({ message: "Task not paused" });
 
     task.activeTimer = new Date();
     task.paused = false;
     task.timerRunning = true;
 
-    // Start a new session for resumed time
     task.sessions = task.sessions || [];
     task.sessions.push({ startTime: task.activeTimer, endTime: null });
 
@@ -187,22 +326,25 @@ export const resumeTime = async (req, res) => {
       paused: false,
     });
   } catch (error) {
+    console.error("resumeTime error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
-
-
 // STOP TIMER
 export const stopTime = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid task id" });
+
+    const task = await Task.findById(id);
     if (!task) return res.status(404).json({ message: "Task not found" });
+
+    if (!canModifyTask(req.user, task.user)) return res.status(403).json({ message: "Access denied" });
 
     let elapsed = 0;
     if (task.activeTimer) {
-      elapsed =
-        Math.floor((Date.now() - new Date(task.activeTimer)) / 1000) || 0;
+      elapsed = Math.floor((Date.now() - new Date(task.activeTimer)) / 1000) || 0;
       task.totalTimeSpent += elapsed;
     }
 
@@ -211,7 +353,6 @@ export const stopTime = async (req, res) => {
     task.paused = false;
     task.status = "completed";
 
-    // Close latest session if open
     if (task.sessions && task.sessions.length > 0) {
       const last = task.sessions[task.sessions.length - 1];
       if (last && !last.endTime) last.endTime = new Date();
@@ -226,6 +367,7 @@ export const stopTime = async (req, res) => {
       paused: false,
     });
   } catch (error) {
+    console.error("stopTime error:", error);
     res.status(500).json({ message: error.message });
   }
 };

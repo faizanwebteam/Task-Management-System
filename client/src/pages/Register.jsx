@@ -1,3 +1,4 @@
+// src/pages/Register.jsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
@@ -5,12 +6,18 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:500
 
 export default function Register() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "user" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "user", // default role
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleChange = (e) =>
+  const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,7 +25,9 @@ export default function Register() {
     setError("");
 
     try {
-      // 1️⃣ Register user
+      // Ensure role is either 'user' or 'hr'
+      if (!["user", "hr"].includes(form.role)) form.role = "user";
+
       const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -26,10 +35,11 @@ export default function Register() {
       });
 
       const data = await res.json();
+
       if (!res.ok) throw new Error(data.message || "Registration failed");
 
-      // 2️⃣ Show success message or redirect to login
-      alert("Registration successful! Please log in to continue.");
+      // Success alert with correct role
+      alert(`Registration successful! Role: ${data.role}`);
       navigate("/login");
 
     } catch (err) {

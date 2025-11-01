@@ -8,8 +8,16 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:500
 function Task() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [formData, setFormData] = useState({
     title: "",
+    category: "",
+    project: "",
+    startDate: "",
+    dueDate: "",
+    assignedTo: "",
     description: "",
   });
   const [statusFilter, setStatusFilter] = useState("all");
@@ -17,39 +25,130 @@ function Task() {
   const { token, authLoading } = useContext(AuthContext);
   const { timers, startTimer, pauseTimer, stopTimer, resumeTimer, formatTime, refreshTimers } = useTimer();
 
+  // Helper: default categories when API empty (ensures UI shows options)
+  const defaultCategories = [
+    "Frontend design",
+    "Backend development",
+    "Software Development",
+    "IT Support / Helpdesk",
+    "Project Management",
+    "Testing",
+    "HR Management",
+    "Meetings",
+    "Social Media Managemnts",
+  ];
+
+  const getTodayDateStr = () => {
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const formatDateTime = (isoString) => {
     if (!isoString) return "-";
     const date = new Date(isoString);
-    return date.toLocaleString();
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const yyyy = date.getFullYear();
+    return `${dd}-${mm}-${yyyy}`;
   };
 
+  // Fetch tasks
   const fetchTasks = useCallback(async () => {
+    if (!token) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/tasks`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-
-      if (res.ok) {
-        let filtered = data;
-        if (statusFilter !== "all") {
-          filtered = data.filter((task) => task.status === statusFilter);
-        }
-        setTasks(filtered);
+      if (res.ok && Array.isArray(data)) {
+        setTasks(data);
         await refreshTimers();
       } else {
-        console.error("Failed to fetch tasks:", data.message);
+        setTasks([]);
       }
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
+    } catch (err) {
+      console.error(err);
+      setTasks([]);
     }
-  }, [token, statusFilter, refreshTimers]);
+  }, [token, refreshTimers]);
+
+  // Fetch projects
+  const fetchProjects = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/projects`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) setProjects(data);
+      else setProjects([]);
+    } catch (err) {
+      console.error("Error fetching projects:", err);
+      setProjects([]);
+    }
+  }, [token]);
+
+  // Fetch employees
+  const fetchEmployees = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/users/employees`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) setEmployees(data);
+      else setEmployees([]);
+    } catch (err) {
+      console.error("Error fetching employees:", err);
+      setEmployees([]);
+    }
+  }, [token]);
+
+  // Fetch categories from backend
+  const fetchCategories = useCallback(async () => {
+    if (!token) {
+      // Convert default categories to objects for consistency
+      setCategories(defaultCategories.map((name, idx) => ({ _id: `default-${idx}`, name })));
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/task-categories`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data) && data.length > 0) {
+        // Keep the full objects with _id and name
+        setCategories(data);
+      } else {
+        // fallback to default list as objects
+        setCategories(defaultCategories.map((name, idx) => ({ _id: `default-${idx}`, name })));
+      }
+    } catch (err) {
+      console.error("Error fetching categories:", err);
+      setCategories(defaultCategories.map((name, idx) => ({ _id: `default-${idx}`, name })));
+    }
+  }, [token]);
 
   useEffect(() => {
     if (!authLoading && token) {
       fetchTasks();
+      fetchProjects();
+      fetchEmployees();
+      fetchCategories();
+
+      setFormData((prev) => ({
+        ...prev,
+        startDate: prev.startDate || getTodayDateStr(),
+        dueDate: prev.dueDate || getTodayDateStr(),
+      }));
+    } else if (!authLoading && !token) {
+      // still try to show defaults for unauthenticated dev mode
+      setCategories(defaultCategories.map((name, idx) => ({ _id: `default-${idx}`, name })));
     }
-  }, [authLoading, token, fetchTasks]);
+  }, [authLoading, token, fetchTasks, fetchProjects, fetchEmployees, fetchCategories]);
 
   useEffect(() => {
     if (!authLoading && !token) {
@@ -57,7 +156,7 @@ function Task() {
     }
   }, [authLoading, token, navigate]);
 
-  // Start / Resume Timer
+  // timer handlers
   const handleStartResume = async (id) => {
     if (timers[id]?.paused) {
       resumeTimer(id);
@@ -65,74 +164,120 @@ function Task() {
       await startTimer(id);
     }
   };
+  const handlePause = async (id) => await pauseTimer(id);
+  const handleStop = async (id) => await stopTimer(id);
 
-  // Pause Timer
-  const handlePause = async (id) => {
-    await pauseTimer(id);
-  };
-
-  // Stop Timer
-  const handleStop = async (id) => {
-    await stopTimer(id);
-  };
-
+  // Form handlers
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Updated preparePayloadFromForm - validate category ID
+  const preparePayloadFromForm = () => {
+    // Only send category if it's a valid MongoDB ObjectId (not default-*)
+    const categoryValue = formData.category ? String(formData.category).trim() : '';
+    const isValidCategory = categoryValue && !categoryValue.startsWith('default-');
+
+    return {
+      title: formData.title || "",
+      description: formData.description || "",
+      category: isValidCategory ? categoryValue : null,
+      project: formData.project || null,
+      assignedTo: formData.assignedTo || null,
+      startDate: formData.startDate || new Date().toISOString(),
+      dueDate: formData.dueDate || new Date().toISOString(),
+      status: "pending",
+    };
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (editingTask) {
-      // Update existing task
-      try {
+    if (!formData.title.trim()) {
+      alert("Title is required");
+      return;
+    }
+    const payload = preparePayloadFromForm();
+    try {
+      if (editingTask) {
         const res = await fetch(`${API_BASE_URL}/api/tasks/${editingTask}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         });
+        const data = await res.json();
         if (res.ok) {
+          setTasks((prev) => prev.map((t) => (t._id === data._id ? data : t)));
           setEditingTask(null);
-          setFormData({ title: "", description: "" });
-          fetchTasks();
+          setFormData({
+            title: "",
+            category: "",
+            project: "",
+            startDate: getTodayDateStr(),
+            dueDate: getTodayDateStr(),
+            assignedTo: "",
+            description: "",
+          });
+          await refreshTimers();
+        } else {
+          console.error("Failed to update task:", data);
         }
-      } catch (error) {
-        console.error("Error updating task:", error);
-      }
-    } else {
-      // Create new task
-      try {
+      } else {
         const res = await fetch(`${API_BASE_URL}/api/tasks`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         });
-        if (res.ok) {
-          setFormData({ title: "", description: "" });
-          fetchTasks();
+        const data = await res.json();
+        if (res.ok && data && data._id) {
+          const created = {
+            ...data,
+            startDate: data.startDate || formData.startDate,
+            dueDate: data.dueDate || formData.dueDate,
+          };
+          setTasks((prev) => [created, ...prev]);
+          // Reset form after creating new task
+          setFormData({
+            title: "",
+            category: "",
+            project: "",
+            startDate: getTodayDateStr(),
+            dueDate: getTodayDateStr(),
+            assignedTo: "",
+            description: "",
+          });
+          await refreshTimers();
+        } else {
+          await fetchTasks();
         }
-      } catch (error) {
-        console.error("Error adding task:", error);
       }
+    } catch (err) {
+      console.error("Error submitting task:", err);
     }
   };
 
   const deleteTask = async (id) => {
     if (!window.confirm("Are you sure you want to delete this task?")) return;
     try {
-      await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      fetchTasks();
-    } catch (error) {
-      console.error("Error deleting task:", error);
+      if (res.ok) {
+        setTasks((prev) => prev.filter((t) => t._id !== id));
+        await refreshTimers();
+      } else {
+        const data = await res.json();
+        console.error("Delete failed:", data);
+      }
+    } catch (err) {
+      console.error("Error deleting task:", err);
     }
   };
 
@@ -148,8 +293,8 @@ function Task() {
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) fetchTasks();
-    } catch (error) {
-      console.error("Error toggling status:", error);
+    } catch (err) {
+      console.error("Error toggling status:", err);
     }
   };
 
@@ -161,35 +306,130 @@ function Task() {
 
       {/* Add/Edit Task Form */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-6">
-        <h3 className="text-xl font-semibold mb-4 text-gray-800">
-          {editingTask ? "✏️ Edit Task" : "➕ Add New Task"}
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-xl font-semibold text-gray-800">
+              {editingTask ? "✏️ Edit Task" : "➕ Add Task"}
+            </h3>
+            <p className="text-sm text-gray-500">Task Info</p>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Title */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Task Title
+                Title <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 name="title"
-                placeholder="Enter task title"
+                placeholder="Enter a task title"
                 value={formData.title}
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
               />
             </div>
+
+            {/* Category (populated from backend) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
+                Task category
+              </label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              >
+                <option value="">Select category</option>
+                {categories.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Project */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
+              <select
+                name="project"
+                value={formData.project}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              >
+                <option value="">Select Project</option>
+                {projects.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Assigned To */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+              <select
+                name="assignedTo"
+                value={formData.assignedTo}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              >
+                <option value="">Select Assignee</option>
+                {employees.map((emp) => (
+                  <option key={emp._id} value={emp._id}>
+                    {emp.name} {emp.role ? `(${emp.role})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Start Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Start Date <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
+                type="date"
+                name="startDate"
+                value={formData.startDate}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              />
+              <p className="text-xs text-gray-400 mt-1">Example: {formatDateTime(formData.startDate)}</p>
+            </div>
+
+            {/* Due Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Due Date <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                name="dueDate"
+                value={formData.dueDate}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              />
+              <p className="text-xs text-gray-400 mt-1">Example: {formatDateTime(formData.dueDate)}</p>
+            </div>
+
+            {/* Description full width */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
                 name="description"
-                placeholder="Enter task description (optional)"
                 value={formData.description}
                 onChange={handleChange}
+                placeholder="Enter task description"
+                rows="3"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
               />
             </div>
@@ -209,7 +449,15 @@ function Task() {
                 type="button"
                 onClick={() => {
                   setEditingTask(null);
-                  setFormData({ title: "", description: "" });
+                  setFormData({
+                    title: "",
+                    category: "",
+                    project: "",
+                    startDate: getTodayDateStr(),
+                    dueDate: getTodayDateStr(),
+                    assignedTo: "",
+                    description: "",
+                  });
                 }}
                 className="px-6 py-2.5 rounded-lg bg-gray-500 hover:bg-gray-600 text-white font-semibold shadow-md hover:shadow-lg transition-all"
               >
@@ -220,23 +468,6 @@ function Task() {
         </form>
       </div>
 
-      {/* Filter */}
-      <div className="mb-6 flex items-center gap-2">
-        <label htmlFor="statusFilter" className="font-semibold text-gray-700">
-          Filter by Status:
-        </label>
-        <select
-          id="statusFilter"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-        >
-          <option value="all">All Tasks</option>
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-        </select>
-      </div>
-
       {/* Task Table */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
@@ -245,9 +476,10 @@ function Task() {
               <tr>
                 <th className="px-6 py-4 text-left">#</th>
                 <th className="px-6 py-4 text-left">Title</th>
-                <th className="px-6 py-4 text-left">Description</th>
-                <th className="px-6 py-4 text-left">Status</th>
-                <th className="px-6 py-4 text-left">Start Time</th>
+                <th className="px-6 py-4 text-left">Project</th>
+                <th className="px-6 py-4 text-left">Assigned To</th>
+                <th className="px-6 py-4 text-left">Start Date</th>
+                <th className="px-6 py-4 text-left">Due Date</th>
                 <th className="px-6 py-4 text-left">Timer</th>
                 <th className="px-6 py-4 text-left">Actions</th>
               </tr>
@@ -258,23 +490,16 @@ function Task() {
                   <tr key={task._id} className="hover:bg-indigo-50 transition-colors">
                     <td className="px-6 py-4 font-medium">{index + 1}</td>
                     <td className="px-6 py-4 font-semibold text-gray-800">{task.title}</td>
-                    <td className="px-6 py-4">{task.description || "-"}</td>
                     <td className="px-6 py-4">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                        task.status === "completed" 
-                          ? "bg-green-600 text-white" 
-                          : "bg-orange-500 text-white"
-                      }`}>
-                        {task.status}
-                      </span>
+                      {task.project?.name || projects.find((p) => p._id === task.project)?.name || "-"}
                     </td>
                     <td className="px-6 py-4">
-                      {timers[task._id]?.running && timers[task._id]?.activeTimer
-                        ? formatDateTime(timers[task._id].activeTimer)
-                        : task.activeTimer
-                        ? formatDateTime(task.activeTimer)
-                        : "-"}
+                      {task.assignedTo?.name ||
+                        employees.find((e) => e._id === task.assignedTo)?.name ||
+                        "-"}
                     </td>
+                    <td className="px-6 py-4">{task.startDate ? formatDateTime(task.startDate) : "-"}</td>
+                    <td className="px-6 py-4">{task.dueDate ? formatDateTime(task.dueDate) : "-"}</td>
                     <td className="px-6 py-4">
                       <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
                         {timers[task._id] ? formatTime(timers[task._id].seconds) : "00:00:00"}
@@ -282,12 +507,16 @@ function Task() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2 flex-wrap">
-                        {/* Edit button */}
                         <button
                           onClick={() => {
                             setEditingTask(task._id);
                             setFormData({
-                              title: task.title,
+                              title: task.title || "",
+                              category: task.category?._id || task.category || "",
+                              project: task.project?._id || task.project || "",
+                              startDate: task.startDate ? task.startDate.split("T")[0] : getTodayDateStr(),
+                              dueDate: task.dueDate ? task.dueDate.split("T")[0] : getTodayDateStr(),
+                              assignedTo: task.assignedTo?._id || task.assignedTo || "",
                               description: task.description || "",
                             });
                           }}
@@ -296,7 +525,6 @@ function Task() {
                           ✏️ Edit
                         </button>
 
-                        {/* Delete button */}
                         <button
                           onClick={() => deleteTask(task._id)}
                           className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-semibold shadow-sm hover:shadow-md transition-all"
@@ -304,19 +532,15 @@ function Task() {
                           🗑️ Delete
                         </button>
 
-                        {/* Toggle Status button */}
                         <button
                           onClick={() => toggleTaskStatus(task._id, task.status)}
                           className={`px-3 py-1.5 rounded-md text-white text-xs font-semibold shadow-sm hover:shadow-md transition-all ${
-                            task.status === "completed"
-                              ? "bg-orange-500 hover:bg-orange-600"
-                              : "bg-green-600 hover:bg-green-700"
+                            task.status === "completed" ? "bg-orange-500 hover:bg-orange-600" : "bg-green-600 hover:bg-green-700"
                           }`}
                         >
                           {task.status === "completed" ? "⏳ Pending" : "✓ Done"}
                         </button>
 
-                        {/* Timer control buttons */}
                         {!timers[task._id]?.running && (
                           <button
                             onClick={() => handleStartResume(task._id)}
@@ -355,7 +579,7 @@ function Task() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="py-12 text-center">
+                  <td colSpan="8" className="py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-gray-400">
                       <svg className="w-16 h-16 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />

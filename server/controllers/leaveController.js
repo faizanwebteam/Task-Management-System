@@ -1,36 +1,52 @@
 import Leave from "../models/leaveModel.js";
 
-// ✅ GET all leaves
+// GET all leaves
 export const getLeaves = async (req, res) => {
   try {
-    const leaves = await Leave.find().sort({ createdAt: -1 });
-    res.json(leaves);
+    let leaves;
+
+    if (req.user.role === "hr") {
+      // HR can see all leaves
+      leaves = await Leave.find()
+        .populate("createdBy", "name email role")
+        .sort({ createdAt: -1 });
+    } else {
+      // Normal user sees only their own leaves
+      leaves = await Leave.find({ createdBy: req.user._id })
+        .populate("createdBy", "name email role")
+        .sort({ createdAt: -1 });
+    }
+
+    res.status(200).json(leaves);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server error while fetching leaves" });
   }
 };
 
 // ✅ POST create a new leave
 export const createLeave = async (req, res) => {
   try {
-    const { employeeName, leaveType, startDate, endDate, reason, status } = req.body;
+    const { leaveType, startDate, endDate, reason, status } = req.body;
 
     const leave = new Leave({
-      employeeName,
+      employeeName: req.user.name, // automatically use logged-in user name
       leaveType,
       startDate,
       endDate,
       reason,
-      status,
-      createdBy: req.user?._id,
+      status: status || "Pending",
+      createdBy: req.user._id, // attach logged-in user
     });
 
     await leave.save();
     res.status(201).json(leave);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Failed to create leave" });
   }
 };
+
 
 // ✅ PUT update leave by ID
 export const updateLeave = async (req, res) => {

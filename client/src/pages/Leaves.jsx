@@ -69,7 +69,7 @@ function Leaves() {
   };
 
   const handleEditLeave = async (id) => {
-    if (!isHR) return; // Only HR can update
+    if (user.role !== "hr") return; // Only HR can update
     try {
       const res = await fetch(`${API_BASE_URL}/api/leaves/${id}`, {
         method: "PUT",
@@ -97,7 +97,7 @@ function Leaves() {
   };
 
   const handleDeleteLeave = async (id) => {
-    if (!isHR) return; // Only HR can delete
+    if (user.role !== "hr") return; // Only HR can delete
     if (!window.confirm("Are you sure you want to delete this leave?")) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/leaves/${id}`, {
@@ -124,7 +124,7 @@ function Leaves() {
       <h2 className="text-3xl font-bold mb-6">Leaves</h2>
 
       {/* Add/Edit Form (only HR) */}
-      {isHR && (
+      {user && (
         <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-6">
           <h3 className="text-xl font-semibold mb-4 text-gray-800">
             {editingLeave ? "✏️ Edit Leave" : "➕ Add New Leave"}

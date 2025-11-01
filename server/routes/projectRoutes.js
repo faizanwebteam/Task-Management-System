@@ -1,3 +1,5 @@
+// routes/projectRoutes.js
+
 import express from "express";
 import {
   getProjects,
@@ -36,6 +38,26 @@ const router = express.Router();
  *                 $ref: '#/components/schemas/Project'
  */
 router.get("/", protect, authorizeRoles("hr", "user"), getProjects);
+
+/**
+ * @swagger
+ * /api/projects/sorted:
+ *   get:
+ *     summary: Get all projects sorted by name (for dropdowns)
+ *     tags: [Projects]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of projects sorted by name
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Project'
+ */
+router.get("/sorted", protect, authorizeRoles("hr", "user"), getProjects);
 
 /**
  * @swagger
@@ -101,7 +123,6 @@ router.post("/", protect, authorizeRoles("hr"), createProject);
 router.route("/:id")
   .put(protect, authorizeRoles("hr"), updateProject)
   .delete(protect, authorizeRoles("hr"), deleteProject);
-
 
 export default router;
 

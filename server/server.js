@@ -12,7 +12,12 @@ import projectRoutes from "./routes/projectRoutes.js";
 import leaveRoutes from "./routes/leaveRoutes.js";
 import holidayRoutes from "./routes/holidayRoutes.js";
 import appreciationRoutes from "./routes/appreciationRoutes.js";
-
+import ticketRoutes from "./routes/ticketsRoutes.js";
+import clientRoutes from "./routes/clientRoutes.js";
+import taskCategoryRoutes from "./routes/taskCategoryRoutes.js";
+import masterCategoryRoutes from "./routes/masterCategoryRoutes.js";
+import roleRoutes from "./routes/roleRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -40,6 +45,12 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/leaves", leaveRoutes)
 app.use("/api/holidays", holidayRoutes)
 app.use("/api/appreciations", appreciationRoutes);
+app.use("/api/tickets", ticketRoutes);
+app.use("/api/clients", clientRoutes);
+app.use("/api/task-categories", taskCategoryRoutes);
+app.use("/api/master-categories", masterCategoryRoutes);
+app.use("/api/roles", roleRoutes);
+app.use("/api/messages", messageRoutes);
 
 // Start cron job
 autoClockOut();

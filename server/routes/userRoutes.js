@@ -7,6 +7,7 @@ import {
   updateUserProfile,
   getAllUsers,
   deleteUser,
+  getEmployees,
 } from "../controllers/userController.js";
 
 /**
@@ -28,7 +29,23 @@ import {
  *       200:
  *         description: User profile
  */
-router.get("/me", protect, authorizeRoles("hr", "user"), getUserProfile);
+// anyone authenticated can fetch their own profile
+router.get("/me", protect, getUserProfile);
+
+/**
+ * @swagger
+ * /api/users/employees:
+ *   get:
+ *     summary: Get all employees (any role can access)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of employees
+ */
+router.get("/employees", protect, getEmployees); // anyone logged in can access
+
 /**
  * @swagger
  * /api/users/profile:
@@ -71,14 +88,14 @@ router.get("/me", protect, authorizeRoles("hr", "user"), getUserProfile);
  *       200:
  *         description: User updated successfully
  */
-
-router.put("/profile", protect, authorizeRoles("hr", "user"), updateUserProfile);
+// allow any authenticated user to update their own profile
+router.put("/profile", protect, updateUserProfile);
 
 /**
  * @swagger
  * /api/users:
  *   get:
- *     summary: Get all users (HR only)
+ *     summary: Get all users (HR or Admin only)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -86,13 +103,14 @@ router.put("/profile", protect, authorizeRoles("hr", "user"), updateUserProfile)
  *       200:
  *         description: List of all users
  */
-router.get("/", protect, authorizeRoles("hr"), getAllUsers);
+// only HR and Admin can list all users
+router.get("/", protect, authorizeRoles("hr", "admin"), getAllUsers);
 
 /**
  * @swagger
  * /api/users/{id}:
  *   delete:
- *     summary: Delete a user (HR only)
+ *     summary: Delete a user (HR or Admin only)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -107,6 +125,7 @@ router.get("/", protect, authorizeRoles("hr"), getAllUsers);
  *       200:
  *         description: User deleted successfully
  */
-router.delete("/:id", protect, authorizeRoles("hr"), deleteUser);
+// only HR and Admin can delete users
+router.delete("/:id", protect, authorizeRoles("hr", "admin"), deleteUser);
 
 export default router;

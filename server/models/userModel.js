@@ -1,4 +1,3 @@
-// models/userModel.js
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
@@ -7,7 +6,8 @@ const userSchema = mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true, select: false },
-    role: { type: String, enum: ["user", "hr"], default: "user" },
+    // Added "admin" role so users can be regular users, HR, or Admins
+    role: { type: String, enum: ["user", "hr", "admin"], default: "user" },
 
     // New fields
     mob: { type: String },                // mobile number

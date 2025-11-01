@@ -1,10 +1,29 @@
 import User from "../models/userModel.js";
 
-// @desc Get all users (HR only)
+// @desc Get all users (HR or Admin only)
 export const getAllUsers = async (req, res) => {
   try {
+    // allow HR and Admin only
+    if (!req.user || (req.user.role !== "hr" && req.user.role !== "admin")) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const users = await User.find().select("-password");
     res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc Get all employees (for ticket assignment)
+// any authenticated user can call this, and include admin/hr in the returned list so they
+// can also be available for assignment if desired
+export const getEmployees = async (req, res) => {
+  try {
+    const employees = await User.find({
+      role: { $in: ["user", "employee", "hr", "admin"] },
+    }).select("-password");
+    res.json(employees);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -71,9 +90,14 @@ export const updateUserProfile = async (req, res) => {
   }
 };
 
-// @desc HR delete a user
+// @desc HR/Admin delete a user
 export const deleteUser = async (req, res) => {
   try {
+    // allow HR and Admin only
+    if (!req.user || (req.user.role !== "hr" && req.user.role !== "admin")) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: "User not found" });
 

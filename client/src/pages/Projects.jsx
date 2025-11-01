@@ -1,3 +1,4 @@
+// pages/Projects.jsx
 import React, { useEffect, useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 
@@ -7,6 +8,7 @@ function Project() {
   const { user, token, authLoading } = useContext(AuthContext);
   const isHR = user?.role === "hr";
 
+  const [showAddForm, setShowAddForm] = useState(false);
   const [projects, setProjects] = useState([]);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
@@ -55,6 +57,7 @@ function Project() {
         },
         body: JSON.stringify({
           ...newProject,
+          // split by comma and trim spaces
           members: newProject.members.split(",").map((m) => m.trim()),
         }),
       });
@@ -71,7 +74,8 @@ function Project() {
         });
         fetchProjects();
       } else {
-        console.error("Failed to add project");
+        const errorData = await res.json();
+        console.error("Failed to add project:", errorData.message);
       }
     } catch (error) {
       console.error("Error adding project:", error);
@@ -87,14 +91,14 @@ function Project() {
   const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
-  // Edit + Save + Delete handlers remain same
+  // Edit + Save + Delete
   const handleEditClick = (project) => {
     if (!isHR) return;
     setEditingProjectId(project._id);
     setEditForm({
       code: project.code,
       name: project.name,
-      members: project.members.join(", "),
+      members: project.members?.map((m) => m.name).join(", ") || "",
       startDate: project.startDate ? project.startDate.split("T")[0] : "",
       deadline: project.deadline ? project.deadline.split("T")[0] : "",
       client: project.client,
@@ -142,12 +146,13 @@ function Project() {
   return (
     <div className="min-h-screen bg-gray-50 p-6 flex justify-center">
       <div className="w-full max-w-6xl bg-white rounded-2xl shadow-md border border-gray-200 p-6">
-        {/* Header section */}
+        {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">Projects</h2>
           {isHR && (
             <button
-              onClick={handleAddProject}
+              type="button"
+              onClick={() => setShowAddForm(!showAddForm)}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow-md transition"
             >
               + Add Project
@@ -155,8 +160,8 @@ function Project() {
           )}
         </div>
 
-        {/* HR Only: Add Project Form */}
-        {isHR && (
+        {/* Add Project Form */}
+        {isHR && showAddForm && (
           <form
             onSubmit={handleAddProject}
             className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200"
@@ -179,7 +184,7 @@ function Project() {
             />
             <input
               type="text"
-              placeholder="Members (comma-separated)"
+              placeholder="Members (comma-separated names)"
               value={newProject.members}
               onChange={(e) => setNewProject({ ...newProject, members: e.target.value })}
               className="border rounded-lg px-3 py-2"
@@ -221,7 +226,7 @@ function Project() {
           </form>
         )}
 
-        {/* Table */}
+        {/* Project Table */}
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 rounded-lg shadow-sm">
             <thead className="bg-gray-100 text-gray-700 uppercase text-sm font-semibold">
@@ -242,6 +247,7 @@ function Project() {
                   <tr key={project._id} className="hover:bg-indigo-50 transition">
                     {editingProjectId === project._id ? (
                       <>
+                        {/* Edit Mode */}
                         <td className="px-4 py-2">
                           <input
                             type="text"
@@ -324,11 +330,18 @@ function Project() {
                       </>
                     ) : (
                       <>
+                        {/* View Mode */}
                         <td className="px-4 py-2">{project.code}</td>
                         <td className="px-4 py-2">{project.name}</td>
-                        <td className="px-4 py-2">{project.members?.join(", ")}</td>
-                        <td className="px-4 py-2">{project.startDate ? new Date(project.startDate).toLocaleDateString() : "-"}</td>
-                        <td className="px-4 py-2">{project.deadline ? new Date(project.deadline).toLocaleDateString() : "-"}</td>
+                        <td className="px-4 py-2">
+                          {project.members?.map((m) => m.name).join(", ")}
+                        </td>
+                        <td className="px-4 py-2">
+                          {project.startDate ? new Date(project.startDate).toLocaleDateString() : "-"}
+                        </td>
+                        <td className="px-4 py-2">
+                          {project.deadline ? new Date(project.deadline).toLocaleDateString() : "-"}
+                        </td>
                         <td className="px-4 py-2">{project.client}</td>
                         <td className="px-4 py-2">
                           <span
