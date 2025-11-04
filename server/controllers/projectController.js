@@ -45,7 +45,6 @@ export const getProjects = async (req, res) => {
   }
 };
 
-
 // CREATE new project (HR only)
 export const createProject = async (req, res) => {
   try {
@@ -55,15 +54,27 @@ export const createProject = async (req, res) => {
 
     const { code, name, members, startDate, deadline, client, status } = req.body;
 
-    // Find users by email or name
-    const memberUsers = await User.find({
-      $or: [
-        { email: { $in: members } },
-        { name: { $in: members } },
-      ],
-    });
+    let memberIds = [];
 
-    const memberIds = memberUsers.map((user) => user._id);
+    // Check if members are ObjectIds or email/name strings
+    if (members && members.length > 0) {
+      // Check if first member looks like an ObjectId (24 hex characters)
+      const isObjectId = /^[0-9a-fA-F]{24}$/.test(members[0]);
+
+      if (isObjectId) {
+        // Members are already IDs, use them directly
+        memberIds = members;
+      } else {
+        // Members are names or emails, find the users
+        const memberUsers = await User.find({
+          $or: [
+            { email: { $in: members } },
+            { name: { $in: members } },
+          ],
+        });
+        memberIds = memberUsers.map((user) => user._id);
+      }
+    }
 
     const project = new Project({
       code,
@@ -78,8 +89,11 @@ export const createProject = async (req, res) => {
 
     await project.save();
 
-    // Populate members before sending response
-    await project.populate("members", "name email");
+    // Populate members and createdBy before sending response
+    await project.populate([
+      { path: "members", select: "name email" },
+      { path: "createdBy", select: "name email" },
+    ]);
 
     res.status(201).json(project);
   } catch (error) {
@@ -87,7 +101,6 @@ export const createProject = async (req, res) => {
     res.status(500).json({ message: "Failed to create project" });
   }
 };
-
 // ✅ UPDATE project (HR only)
 export const updateProject = async (req, res) => {
   try {
@@ -103,10 +116,26 @@ export const updateProject = async (req, res) => {
     // Update fields
     project.code = code ?? project.code;
     project.name = name ?? project.name;
+    
     if (members && members.length > 0) {
-      const users = await User.find({ email: { $in: members } });
-      project.members = users.map((u) => u._id);
+      // Check if members are ObjectIds or email/name strings
+      const isObjectId = /^[0-9a-fA-F]{24}$/.test(members[0]);
+
+      if (isObjectId) {
+        // Members are already IDs
+        project.members = members;
+      } else {
+        // Members are names or emails
+        const users = await User.find({
+          $or: [
+            { email: { $in: members } },
+            { name: { $in: members } },
+          ],
+        });
+        project.members = users.map((u) => u._id);
+      }
     }
+    
     project.startDate = startDate ?? project.startDate;
     project.deadline = deadline ?? project.deadline;
     project.client = client ?? project.client;

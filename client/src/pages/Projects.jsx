@@ -19,7 +19,7 @@ function Project() {
   const [newProject, setNewProject] = useState({
     code: "",
     name: "",
-    members: [],
+    member: "", // single member
     startDate: "",
     deadline: "",
     client: "",
@@ -47,43 +47,31 @@ function Project() {
     }
   };
 
-  // Fetch Clients
   const fetchClients = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/clients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (res.ok && Array.isArray(data)) {
-        setClients(data);
-      } else {
-        setClients([]);
-      }
+      if (res.ok && Array.isArray(data)) setClients(data);
     } catch (error) {
       console.error("Error fetching clients:", error);
-      setClients([]);
     }
   };
 
-  // Fetch Employees
   const fetchEmployees = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/users/employees`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (res.ok && Array.isArray(data)) {
-        setEmployees(data);
-      } else {
-        setEmployees([]);
-      }
+      if (res.ok && Array.isArray(data)) setEmployees(data);
     } catch (error) {
       console.error("Error fetching employees:", error);
-      setEmployees([]);
     }
   };
 
-  // Add project (HR only)
+  // Add project
   const handleAddProject = async (e) => {
     e.preventDefault();
     if (!isHR) return;
@@ -97,7 +85,7 @@ function Project() {
         },
         body: JSON.stringify({
           ...newProject,
-          members: newProject.members, // Already an array now
+          members: [newProject.member], // wrap single member in array for backend
         }),
       });
 
@@ -105,7 +93,7 @@ function Project() {
         setNewProject({
           code: "",
           name: "",
-          members: [],
+          member: "",
           startDate: "",
           deadline: "",
           client: "",
@@ -122,35 +110,13 @@ function Project() {
     }
   };
 
-  // Handle multiple member selection
-  const handleMemberChange = (e) => {
-    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-    setNewProject({ ...newProject, members: selectedOptions });
-  };
-
-  // Handle multiple member selection in edit form
-  const handleEditMemberChange = (e) => {
-    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-    setEditForm({ ...editForm, members: selectedOptions });
-  };
-
-  // Pagination
-  const indexOfLast = currentPage * entriesPerPage;
-  const indexOfFirst = indexOfLast - entriesPerPage;
-  const currentProjects = projects.slice(indexOfFirst, indexOfLast);
-  const totalPages = Math.ceil(projects.length / entriesPerPage);
-
-  const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
-  const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
-
-  // Edit + Save + Delete
   const handleEditClick = (project) => {
     if (!isHR) return;
     setEditingProjectId(project._id);
     setEditForm({
       code: project.code,
       name: project.name,
-      members: project.members?.map((m) => m._id || m) || [],
+      member: project.members?.[0]?._id || project.members?.[0] || "",
       startDate: project.startDate ? project.startDate.split("T")[0] : "",
       deadline: project.deadline ? project.deadline.split("T")[0] : "",
       client: project.client,
@@ -169,7 +135,7 @@ function Project() {
         },
         body: JSON.stringify({
           ...editForm,
-          members: editForm.members, // Already an array now
+          members: [editForm.member], // backend expects array
         }),
       });
       if (res.ok) {
@@ -195,10 +161,17 @@ function Project() {
     }
   };
 
+  const indexOfLast = currentPage * entriesPerPage;
+  const indexOfFirst = indexOfLast - entriesPerPage;
+  const currentProjects = projects.slice(indexOfFirst, indexOfLast);
+  const totalPages = Math.ceil(projects.length / entriesPerPage);
+
+  const handlePrev = () => currentPage > 1 && setCurrentPage(currentPage - 1);
+  const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
+
   return (
     <div className="min-h-screen bg-gray-50 p-6 flex justify-center">
       <div className="w-full max-w-6xl bg-white rounded-2xl shadow-md border border-gray-200 p-6">
-        {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">Projects</h2>
           {isHR && (
@@ -234,19 +207,17 @@ function Project() {
               className="border rounded-lg px-3 py-2"
               required
             />
-            
-            {/* Members Dropdown - Multiple Select */}
+
+            {/* Single Member Dropdown */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Members (Hold Ctrl/Cmd to select multiple)
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Member</label>
               <select
-                multiple
-                value={newProject.members}
-                onChange={handleMemberChange}
-                className="border rounded-lg px-3 py-2 w-full h-24"
+                value={newProject.member}
+                onChange={(e) => setNewProject({ ...newProject, member: e.target.value })}
+                className="border rounded-lg px-3 py-2 w-full"
+                required
               >
-                <option value="">-- Select Members --</option>
+                <option value="">-- Select Member --</option>
                 {employees.map((emp) => (
                   <option key={emp._id} value={emp._id}>
                     {emp.name} ({emp.role})
@@ -267,8 +238,7 @@ function Project() {
               onChange={(e) => setNewProject({ ...newProject, deadline: e.target.value })}
               className="border rounded-lg px-3 py-2"
             />
-            
-            {/* Client Dropdown */}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
               <select
@@ -294,6 +264,7 @@ function Project() {
               <option value="in-progress">In Progress</option>
               <option value="completed">Completed</option>
             </select>
+
             <button
               type="submit"
               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-md transition col-span-1 md:col-span-3"
@@ -303,14 +274,14 @@ function Project() {
           </form>
         )}
 
-        {/* Project Table */}
+        {/* Table */}
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 rounded-lg shadow-sm">
             <thead className="bg-gray-100 text-gray-700 uppercase text-sm font-semibold">
               <tr>
                 <th className="py-3 px-4 text-left">Code</th>
                 <th className="py-3 px-4 text-left">Project Name</th>
-                <th className="py-3 px-4 text-left">Members</th>
+                <th className="py-3 px-4 text-left">Member</th>
                 <th className="py-3 px-4 text-left">Start</th>
                 <th className="py-3 px-4 text-left">Deadline</th>
                 <th className="py-3 px-4 text-left">Client</th>
@@ -324,7 +295,6 @@ function Project() {
                   <tr key={project._id} className="hover:bg-indigo-50 transition">
                     {editingProjectId === project._id ? (
                       <>
-                        {/* Edit Mode */}
                         <td className="px-4 py-2">
                           <input
                             type="text"
@@ -341,13 +311,14 @@ function Project() {
                             className="border px-2 py-1 w-full rounded"
                           />
                         </td>
+
                         <td className="px-4 py-2">
                           <select
-                            multiple
-                            value={editForm.members}
-                            onChange={handleEditMemberChange}
-                            className="border px-2 py-1 w-full rounded h-20"
+                            value={editForm.member}
+                            onChange={(e) => setEditForm({ ...editForm, member: e.target.value })}
+                            className="border px-2 py-1 w-full rounded"
                           >
+                            <option value="">-- Select Member --</option>
                             {employees.map((emp) => (
                               <option key={emp._id} value={emp._id}>
                                 {emp.name}
@@ -355,6 +326,7 @@ function Project() {
                             ))}
                           </select>
                         </td>
+
                         <td className="px-4 py-2">
                           <input
                             type="date"
@@ -419,17 +391,20 @@ function Project() {
                       </>
                     ) : (
                       <>
-                        {/* View Mode */}
                         <td className="px-4 py-2">{project.code}</td>
                         <td className="px-4 py-2">{project.name}</td>
                         <td className="px-4 py-2">
-                          {project.members?.map((m) => m.name).join(", ")}
+                          {project.members?.[0]?.name || "-"}
                         </td>
                         <td className="px-4 py-2">
-                          {project.startDate ? new Date(project.startDate).toLocaleDateString() : "-"}
+                          {project.startDate
+                            ? new Date(project.startDate).toLocaleDateString()
+                            : "-"}
                         </td>
                         <td className="px-4 py-2">
-                          {project.deadline ? new Date(project.deadline).toLocaleDateString() : "-"}
+                          {project.deadline
+                            ? new Date(project.deadline).toLocaleDateString()
+                            : "-"}
                         </td>
                         <td className="px-4 py-2">{project.client}</td>
                         <td className="px-4 py-2">
@@ -461,7 +436,10 @@ function Project() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={isHR ? 8 : 7} className="py-6 text-center italic text-gray-500">
+                  <td
+                    colSpan={isHR ? 8 : 7}
+                    className="py-6 text-center italic text-gray-500"
+                  >
                     No data available
                   </td>
                 </tr>
@@ -489,7 +467,8 @@ function Project() {
           </div>
           <div className="flex gap-2 items-center">
             <span>
-              Showing {indexOfFirst + 1} to {Math.min(indexOfLast, projects.length)} of {projects.length} entries
+              Showing {indexOfFirst + 1} to {Math.min(indexOfLast, projects.length)} of{" "}
+              {projects.length} entries
             </span>
             <button
               onClick={handlePrev}
