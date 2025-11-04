@@ -1,6 +1,3 @@
-// middleware/roleMiddleware.js
-// Simple role-based authorization middleware.
-//
 // Usage examples:
 //   router.get("/admin", protect, authorizeRoles("admin"), adminHandler);
 //   router.get("/hr-or-admin", protect, authorizeRoles("hr", "admin"), handler);

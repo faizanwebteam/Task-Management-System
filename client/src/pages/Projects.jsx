@@ -10,6 +10,8 @@ function Project() {
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [projects, setProjects] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [editingProjectId, setEditingProjectId] = useState(null);
@@ -17,7 +19,7 @@ function Project() {
   const [newProject, setNewProject] = useState({
     code: "",
     name: "",
-    members: "",
+    members: [],
     startDate: "",
     deadline: "",
     client: "",
@@ -27,6 +29,8 @@ function Project() {
   useEffect(() => {
     if (!authLoading && token) {
       fetchProjects();
+      fetchClients();
+      fetchEmployees();
     }
   }, [authLoading, token]);
 
@@ -40,6 +44,42 @@ function Project() {
       else console.error("Failed to fetch projects:", data.message);
     } catch (error) {
       console.error("Error fetching projects:", error);
+    }
+  };
+
+  // Fetch Clients
+  const fetchClients = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/clients`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) {
+        setClients(data);
+      } else {
+        setClients([]);
+      }
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+      setClients([]);
+    }
+  };
+
+  // Fetch Employees
+  const fetchEmployees = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/users/employees`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) {
+        setEmployees(data);
+      } else {
+        setEmployees([]);
+      }
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      setEmployees([]);
     }
   };
 
@@ -57,8 +97,7 @@ function Project() {
         },
         body: JSON.stringify({
           ...newProject,
-          // split by comma and trim spaces
-          members: newProject.members.split(",").map((m) => m.trim()),
+          members: newProject.members, // Already an array now
         }),
       });
 
@@ -66,13 +105,14 @@ function Project() {
         setNewProject({
           code: "",
           name: "",
-          members: "",
+          members: [],
           startDate: "",
           deadline: "",
           client: "",
           status: "pending",
         });
         fetchProjects();
+        setShowAddForm(false);
       } else {
         const errorData = await res.json();
         console.error("Failed to add project:", errorData.message);
@@ -80,6 +120,18 @@ function Project() {
     } catch (error) {
       console.error("Error adding project:", error);
     }
+  };
+
+  // Handle multiple member selection
+  const handleMemberChange = (e) => {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+    setNewProject({ ...newProject, members: selectedOptions });
+  };
+
+  // Handle multiple member selection in edit form
+  const handleEditMemberChange = (e) => {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+    setEditForm({ ...editForm, members: selectedOptions });
   };
 
   // Pagination
@@ -98,7 +150,7 @@ function Project() {
     setEditForm({
       code: project.code,
       name: project.name,
-      members: project.members?.map((m) => m.name).join(", ") || "",
+      members: project.members?.map((m) => m._id || m) || [],
       startDate: project.startDate ? project.startDate.split("T")[0] : "",
       deadline: project.deadline ? project.deadline.split("T")[0] : "",
       client: project.client,
@@ -117,7 +169,7 @@ function Project() {
         },
         body: JSON.stringify({
           ...editForm,
-          members: editForm.members.split(",").map((m) => m.trim()),
+          members: editForm.members, // Already an array now
         }),
       });
       if (res.ok) {
@@ -182,13 +234,27 @@ function Project() {
               className="border rounded-lg px-3 py-2"
               required
             />
-            <input
-              type="text"
-              placeholder="Members (comma-separated names)"
-              value={newProject.members}
-              onChange={(e) => setNewProject({ ...newProject, members: e.target.value })}
-              className="border rounded-lg px-3 py-2"
-            />
+            
+            {/* Members Dropdown - Multiple Select */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Members (Hold Ctrl/Cmd to select multiple)
+              </label>
+              <select
+                multiple
+                value={newProject.members}
+                onChange={handleMemberChange}
+                className="border rounded-lg px-3 py-2 w-full h-24"
+              >
+                <option value="">-- Select Members --</option>
+                {employees.map((emp) => (
+                  <option key={emp._id} value={emp._id}>
+                    {emp.name} ({emp.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <input
               type="date"
               value={newProject.startDate}
@@ -201,13 +267,24 @@ function Project() {
               onChange={(e) => setNewProject({ ...newProject, deadline: e.target.value })}
               className="border rounded-lg px-3 py-2"
             />
-            <input
-              type="text"
-              placeholder="Client Name"
-              value={newProject.client}
-              onChange={(e) => setNewProject({ ...newProject, client: e.target.value })}
-              className="border rounded-lg px-3 py-2"
-            />
+            
+            {/* Client Dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+              <select
+                value={newProject.client}
+                onChange={(e) => setNewProject({ ...newProject, client: e.target.value })}
+                className="border rounded-lg px-3 py-2 w-full"
+              >
+                <option value="">-- Select Client --</option>
+                {clients.map((client) => (
+                  <option key={client._id} value={client.name}>
+                    {client.name} ({client.company})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <select
               value={newProject.status}
               onChange={(e) => setNewProject({ ...newProject, status: e.target.value })}
@@ -265,12 +342,18 @@ function Project() {
                           />
                         </td>
                         <td className="px-4 py-2">
-                          <input
-                            type="text"
+                          <select
+                            multiple
                             value={editForm.members}
-                            onChange={(e) => setEditForm({ ...editForm, members: e.target.value })}
-                            className="border px-2 py-1 w-full rounded"
-                          />
+                            onChange={handleEditMemberChange}
+                            className="border px-2 py-1 w-full rounded h-20"
+                          >
+                            {employees.map((emp) => (
+                              <option key={emp._id} value={emp._id}>
+                                {emp.name}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-4 py-2">
                           <input
@@ -289,12 +372,18 @@ function Project() {
                           />
                         </td>
                         <td className="px-4 py-2">
-                          <input
-                            type="text"
+                          <select
                             value={editForm.client}
                             onChange={(e) => setEditForm({ ...editForm, client: e.target.value })}
                             className="border px-2 py-1 w-full rounded"
-                          />
+                          >
+                            <option value="">-- Select Client --</option>
+                            {clients.map((client) => (
+                              <option key={client._id} value={client.name}>
+                                {client.name}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-4 py-2">
                           <select
@@ -405,14 +494,14 @@ function Project() {
             <button
               onClick={handlePrev}
               disabled={currentPage === 1}
-              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded"
+              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded disabled:opacity-50"
             >
               Previous
             </button>
             <button
               onClick={handleNext}
               disabled={currentPage === totalPages || totalPages === 0}
-              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded"
+              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded disabled:opacity-50"
             >
               Next
             </button>
