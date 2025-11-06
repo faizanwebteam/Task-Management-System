@@ -20,19 +20,17 @@ import Tickets from "./pages/Tickets";
 import Roles from "./pages/Roles";
 import AdminCreateUser from "./pages/AdminCreateUser";
 import Message from "./pages/message";
+import { AuthProvider } from "./context/AuthContext"; // ✅ Import AuthProvider
 
 function AppWrapper() {
   const location = useLocation();
-  const user = JSON.parse(localStorage.getItem("user"));
 
-  // Pages where sidebar should NOT be shown
   const noSidebarPages = ["/login", "/register", "/"];
-
   const showSidebar = !noSidebarPages.includes(location.pathname);
 
   return (
     <>
-      <Header user={user} />
+      <Header /> {/* ✅ No need to pass user manually */}
       <div className="flex min-h-screen">
         {showSidebar && <Sidebar />}
         <main className="flex-1 p-6">
@@ -40,20 +38,19 @@ function AppWrapper() {
             <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
             <Route path="/roles" element={<Roles />} />
-            <Route path="/admincreateuser" element= {<AdminCreateUser />} />
+            <Route path="/admincreateuser" element={<AdminCreateUser />} />
             <Route path="/register" element={<Register />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/work/tasks" element={<Task />} />
             <Route path="/work/timesheet" element={<Timesheet />} />
-            <Route path="/work/projects" element={<Projects/>}/>
+            <Route path="/work/projects" element={<Projects />} />
             <Route path="/hr/attendance" element={<Attendance />} />
-            <Route path="/hr/leaves" element={<Leaves/>} />
-            <Route path="/hr/holiday" element={<Holiday/>} />
-            <Route path="/hr/appreciation" element={<Appreciation/>} />
+            <Route path="/hr/leaves" element={<Leaves />} />
+            <Route path="/hr/holiday" element={<Holiday />} />
+            <Route path="/hr/appreciation" element={<Appreciation />} />
             <Route path="/tickets" element={<Tickets />} />
             <Route path="/message" element={<Message />} />
             <Route path="/settings" element={<Setting />} />
-
           </Routes>
         </main>
       </div>
@@ -65,9 +62,11 @@ function AppWrapper() {
 function App() {
   return (
     <Router>
-      <TimerProvider>
-        <AppWrapper />
-      </TimerProvider>
+      <AuthProvider>  {/* ✅ Wrap entire app here */}
+        <TimerProvider>
+          <AppWrapper />
+        </TimerProvider>
+      </AuthProvider>
     </Router>
   );
 }

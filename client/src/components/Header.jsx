@@ -1,8 +1,8 @@
-//components/Header.jsx
-
-import React, { useState } from "react";
+// components/Header.jsx
+import React, { useState, useContext } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Menu, X } from "lucide-react"; // optional icons, install lucide-react
+import { Menu, X } from "lucide-react";
+import { AuthContext } from "../context/AuthContext"; // ✅ Import context
 
 const menuItems = [
   { section: "Dashboard", items: [{ name: "Dashboard", path: "/dashboard" }] },
@@ -25,14 +25,14 @@ const menuItems = [
   },
 ];
 
-const Header = ({ user, onLogout }) => {
+const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, logout } = useContext(AuthContext); // ✅ Get from context
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    if (onLogout) onLogout();
+    logout(); // ✅ Uses AuthContext logout (clears user & token)
     navigate("/login");
   };
 
@@ -40,7 +40,7 @@ const Header = ({ user, onLogout }) => {
     <header className="bg-slate-900 text-white px-6 py-4 shadow-md">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* Mobile Menu Button (left) */}
+          {/* Mobile Menu Button */}
           <button
             className="md:hidden p-2 rounded-md hover:bg-slate-800 transition-colors"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -48,11 +48,12 @@ const Header = ({ user, onLogout }) => {
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
 
-        <h1
-          className="text-xl font-semibold tracking-wide cursor-pointer hover:text-indigo-400 transition-colors"
-        >
-          Task Manager
-        </h1>
+          <h1
+            className="text-xl font-semibold tracking-wide cursor-pointer hover:text-indigo-400 transition-colors"
+            onClick={() => navigate("/dashboard")}
+          >
+            Task Manager
+          </h1>
         </div>
 
         {/* Desktop Menu */}
@@ -82,20 +83,19 @@ const Header = ({ user, onLogout }) => {
         </nav>
       </div>
 
-      {/* Mobile Overlay */}
+      {/* Mobile overlay */}
       <div
         onClick={() => setIsMobileMenuOpen(false)}
         className={`fixed inset-0 z-40 bg-black/40 md:hidden transition-opacity duration-300 ${
-          isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          isMobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
       />
 
-      {/* Mobile Slide-in Menu (Left Drawer) */}
+      {/* Mobile menu */}
       <aside
         className={`fixed top-0 left-0 z-50 h-full w-64 bg-slate-900 md:hidden shadow-xl transform transition-transform duration-300 ${
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
-        aria-hidden={!isMobileMenuOpen}
       >
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
           <span className="text-base font-semibold">Menu</span>
@@ -107,8 +107,8 @@ const Header = ({ user, onLogout }) => {
             <X size={20} />
           </button>
         </div>
+
         <nav className="p-4 overflow-y-auto h-[calc(100%-56px)]">
-          {/* Navigation Items */}
           {menuItems.map((section) => (
             <div key={section.section} className="mb-4">
               <h3 className="text-gray-400 uppercase text-xs font-semibold mb-2">
@@ -123,9 +123,10 @@ const Header = ({ user, onLogout }) => {
                       setIsMobileMenuOpen(false);
                     }}
                     className={`text-sm font-medium transition-colors text-left px-2 py-1 rounded
-                      ${location.pathname === item.path
-                        ? 'text-indigo-400 bg-indigo-900/20'
-                        : 'text-gray-300 hover:text-indigo-400'
+                      ${
+                        location.pathname === item.path
+                          ? "text-indigo-400 bg-indigo-900/20"
+                          : "text-gray-300 hover:text-indigo-400"
                       }`}
                   >
                     {item.name}
@@ -135,11 +136,11 @@ const Header = ({ user, onLogout }) => {
             </div>
           ))}
 
-          {/* Profile and Auth */}
+          {/* Profile + Auth */}
           <div className="border-t border-gray-700 pt-4 mt-4">
             <button
               onClick={() => {
-                navigate('/profile');
+                navigate("/settings");
                 setIsMobileMenuOpen(false);
               }}
               className="text-sm font-medium hover:text-indigo-400 transition-colors text-left px-2 py-1 rounded w-full"
@@ -160,7 +161,7 @@ const Header = ({ user, onLogout }) => {
             ) : (
               <button
                 onClick={() => {
-                  navigate('/login');
+                  navigate("/login");
                   setIsMobileMenuOpen(false);
                 }}
                 className="bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-md transition-colors w-full mt-2"
